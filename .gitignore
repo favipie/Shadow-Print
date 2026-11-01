@@ -1,0 +1,56 @@
+# Node / Next.js
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+!database/.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Python / FastAPI (future backend)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Local databases, backups and generated workloads
+*.sqlite
+*.sqlite3
+*.db
+*.bak
+*.backup
+*.mdf
+*.ndf
+*.ldf
+database/generated.sql
+database/node_modules/
+
+# Editor / OS files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Do not redistribute user-supplied or environment-specific visual artifacts
+public/reference-handshake.jpg
+qa/

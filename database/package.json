@@ -1,0 +1,1 @@
+{"name":"shadowprint-database","private":true,"type":"module","scripts":{"generate":"node ../node_modules/tsx/dist/cli.mjs generate.ts","test":"node ../node_modules/tsx/dist/cli.mjs --test tests/*.test.ts","verify":"node verify.mjs","migrate":"node migrate.mjs"},"dependencies":{"mysql2":"3.15.3"}}
