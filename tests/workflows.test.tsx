@@ -2,13 +2,7 @@ import "./dom-setup.mjs";
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import React from "react";
-import {
-  render,
-  screen,
-  cleanup,
-  waitFor,
-  fireEvent,
-} from "@testing-library/react";
+import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DemoProvider } from "../src/components/demo-provider";
 import Threats from "../src/components/screens/threats";
@@ -146,4 +140,10 @@ test("evidence dialog opens with accessible name and closes via action", async (
   assert.ok(closed);
 });
 
-test('account directory accepts case-insensitive account IDs',async()=>{const user=userEvent.setup();renderDemo(<Accounts params={new URLSearchParams()}/>);await user.type(screen.getByLabelText('Search account or ID'),'a-004');assert.ok(screen.getByText('1 of 9 accounts'));assert.ok(screen.getByRole('link',{name:/RE\s*@relay_fox\s*A-004/}));});
+test("account directory accepts case-insensitive account IDs", async () => {
+  const user = userEvent.setup();
+  renderDemo(<Accounts params={new URLSearchParams()} />);
+  await user.type(screen.getByLabelText("Search account or ID"), "a-004");
+  assert.ok(screen.getByText("1 of 9 accounts"));
+  assert.ok(screen.getByRole("link", { name: /RE\s*@relay_fox\s*A-004/ }));
+});

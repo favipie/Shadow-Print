@@ -11,7 +11,7 @@ import {
 } from "@/lib/demo-engine";
 import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";
-import { AccountLink, Empty, EvidenceRows, Field, SectionHead } from "./shared";
+import { AccountLink, Empty, EvidenceRows, Field } from "./shared";
 export default function ReportsScreen({ params }: { params: URLSearchParams }) {
   const { state } = useDemo();
   const [notice, setNotice] = useState("");

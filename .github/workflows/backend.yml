@@ -1,0 +1,59 @@
+﻿name: SQL Server integration
+permissions:
+  contents: read
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2025-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: CI_Only_Strong_123
+        ports: ['1433:1433']
+        options: >-
+          --health-cmd="/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P CI_Only_Strong_123 -C -Q 'SELECT 1'"
+          --health-interval=10s --health-timeout=5s --health-retries=18
+    env:
+      SHADOWPRINT_DATABASE_URL: mssql+pyodbc://sa:CI_Only_Strong_123@127.0.0.1:1433/shadowprint_ci_test?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes&LongAsMax=yes
+      SHADOWPRINT_TEST_DATABASE_URL: mssql+pyodbc://sa:CI_Only_Strong_123@127.0.0.1:1433/shadowprint_ci_test?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes&LongAsMax=yes
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '12.16.1'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.11.29'
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Install ODBC Driver 18
+        run: |
+          curl -fsSL https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -o /tmp/packages-microsoft-prod.deb
+          sudo dpkg -i /tmp/packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
+      - run: pnpm install --frozen-lockfile
+      - run: uv sync --locked --python 3.12
+        working-directory: backend
+      - name: Create disposable database
+        run: docker exec ${{ job.services.sqlserver.id }} /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P CI_Only_Strong_123 -C -b -Q 'CREATE DATABASE shadowprint_ci_test;'
+      - run: uv run python migrate.py
+        working-directory: backend
+      - run: uv run ruff check . && uv run ruff format --check . && uv run pytest -q
+        working-directory: backend
+      - run: pnpm test && pnpm lint && pnpm format:check && pnpm build && pnpm typecheck
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-verification
+          path: test-results/

@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   ArrowDownToLine,
-  ArrowRight,
   ArrowUpRight,
   Bell,
   ChevronDown,

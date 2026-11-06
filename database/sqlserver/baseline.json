@@ -1,0 +1,90 @@
+{
+  "accounts": {
+    "count": 9,
+    "sha256": "1b83663c009cf8f8eccbef62e7297f56cc517d8ed47d0fab090bc64806578b28"
+  },
+  "audit_history": {
+    "count": 4,
+    "sha256": "dd26ea732625ade2f1fa81dbe5518d81f64b467f2b52021dc20a3293b9ee9255"
+  },
+  "case_notes": {
+    "count": 1,
+    "sha256": "c999c1cdf0918d8b92ac151aa07d4aabf6ed7c3bff333d829ef000f3fe656ea9"
+  },
+  "comment_labels": {
+    "count": 25,
+    "sha256": "253850b981be1162faf5a3da60aebfff4ab926e1165df3be0d1f85143d60bccb"
+  },
+  "comments": {
+    "count": 28,
+    "sha256": "190ffc1e5b632e8cab8cde7cecc3807ee9664b5e6530f46e1766d2eceb170dbd"
+  },
+  "detection_rules": {
+    "count": 4,
+    "sha256": "fed71f63e5811a64ff2e64a5a7dc5bfe41c91ed8f09ea8461ee74ea31ce8085c"
+  },
+  "detection_runs": {
+    "count": 1,
+    "sha256": "615134733d00d600a883b44d4d07138a0fbcd562d054c7dc71f15557de9a3835"
+  },
+  "devices": {
+    "count": 6,
+    "sha256": "62bdef6a01004fc44c8a8b6ec353112159c7af0bbc004caaa407ab2275543292"
+  },
+  "evidence": {
+    "count": 36,
+    "sha256": "55000038ffaa2f76bf5cba4d528b21ff1a1557c4683d24ec6af126a78d453ace"
+  },
+  "finding_evidence": {
+    "count": 53,
+    "sha256": "35e22221be04185bec5a112accf7e9313f212248becdec5664143525eb1d8660"
+  },
+  "findings": {
+    "count": 11,
+    "sha256": "08fcd5644d711e05fdd6d3cb94833c14a868c831fc690c4abdcdcce6e0368ceb"
+  },
+  "interactions": {
+    "count": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "investigation_accounts": {
+    "count": 7,
+    "sha256": "c0249abb5998283c08ed132d549a153a823240268101b07559fe969975be0c99"
+  },
+  "investigation_evidence": {
+    "count": 20,
+    "sha256": "69513f7bbc6d6cab500e34dc56e1e59a12c6cf4b83ddd1d49777d620cbe8792d"
+  },
+  "investigation_findings": {
+    "count": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "investigations": {
+    "count": 3,
+    "sha256": "93c522cca2890347e276b09979540f985810b4f0e2aca3bc24b1679074f5dfad"
+  },
+  "investigators": {
+    "count": 1,
+    "sha256": "86767716461414923d618eebbbe03ac95c6ddd7b3ad8713ce13666291a2b0127"
+  },
+  "label_types": {
+    "count": 5,
+    "sha256": "98c707f1131630564e039480d3095fac890df898cef0006db4216d9660b1d262"
+  },
+  "login_events": {
+    "count": 8,
+    "sha256": "b19a53f154e94e5f3c65a36a7d380e03ce9b27aec8485e66e19dc84f55480b6e"
+  },
+  "posts": {
+    "count": 9,
+    "sha256": "984c23309dbd7704e8a1f4bcd0eabb8a60ae2c09ede865630e5cacfb8fda2b81"
+  },
+  "provenance": {
+    "count": 3,
+    "sha256": "62e0d9aa75f849fb457a2c317d32d0a66e3c35ee7a74b101106b54ab93022bf1"
+  },
+  "review_actions": {
+    "count": 2,
+    "sha256": "eb41bd5ef72361a9064edb64ee6b826ba125b3c524977c5473f3c67d949415b3"
+  }
+}

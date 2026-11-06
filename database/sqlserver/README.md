@@ -1,9 +1,15 @@
-# SQL Server implementation placeholder
+﻿# SQL Server implementation
 
-The current Phase 3 database is MySQL 8.0.16+ reference code under `database/`. It has not been imported into SQL Server and must not be executed unchanged against SQL Server Express.
+This directory contains a read-only export of the existing, verified Microsoft SQL Server 2025 database. It is the active schema contract used by FastAPI. The original MySQL implementation in the parent directory is historical reference.
 
-The intended local target is configured by environment, not hard-coded project configuration. On the project owner's laptop, the known target is a Windows-authenticated SQL Server Express instance and `shadowprint_db`. Other machines must supply their own server/database values.
+- `001_schema.sql`: 22 tables, original types/collations, identity columns, defaults, keys, checks, foreign keys and indexes.
+- `002_detection.sql`: seven views, three procedures and the existing normalization function, retaining the verified SQL detection rules.
+- `003_seed.sql`: 236 original synthetic rows, including 9 accounts, 28 comments, 11 findings and existing investigation history.
+- `baseline.json`: sorted row counts and SHA-256 hashes for all 22 tables, captured before integration tests.
+- [VALIDATION.md](VALIDATION.md): executed SQL Server validation and preservation evidence.
 
-Before conversion, create a separate SQL Server migration series that maps MySQL `ENUM`, `DATETIME(3)`, `JSON`, procedures, check constraints, `REGEXP_REPLACE`, views and recursive CTE syntax to tested T-SQL equivalents. Preserve the 9-account/28-comment deterministic scenario and its known positive and benign controls. Run the converted schema, seed and tests against SQL Server before connecting FastAPI or the frontend.
+The scripts initialize **empty disposable test databases only** through `backend/migrate.py`. Never apply them to the populated `shadowprint_db`. The runner requires a database name ending in `_test` and refuses nonempty databases. The application does not run migrations at startup.
 
-No SQL Server credentials, connection strings, backup files or local-machine settings belong in Git.
+`backend/export_sqlserver.py` reads catalog definitions and records without changing the source database. Its `--digest-only` option writes table hashes for comparison. Configure the instance using ignored environment settings; no credentials or database backups are committed.
+
+See [database setup](../../DATABASE-SETUP.md), [backend](../../backend/README.md), and [integration verification](../../INTEGRATION-VERIFICATION.md).

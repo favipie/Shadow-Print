@@ -1,3 +1,5 @@
+> Historical checkpoint. The active application now uses Next.js -> FastAPI -> Microsoft SQL Server. This document preserves earlier work and its then-current limitations. See [current integration verification](../INTEGRATION-VERIFICATION.md).
+
 # Progress checkpoints
 
 1. Inspected repository instructions, `src/lib/mock-data.ts` and all original normalized frontend fixtures before changes. Frontend source remains untouched.
@@ -10,7 +12,7 @@
 
 Before database acceptance: provision a dedicated MySQL 8.0.16+ instance, run migrate.mjs and verify.mjs, inspect EXPLAIN plans on generated data, and fix any engine-specific failures. Keep exact command/version/output evidence.
 
-FastAPI milestone: introduce a separate backend with environment-only credentials, connection pooling, schema-aware request validation, pagination, UTC serialization, source-aware comments/accounts endpoints, persisted detection runs and transactional case/review operations. Add backend tests against the verified schema. Do not point the working frontend at partial endpoints.
+FastAPI milestone source is now implemented under `backend/`: environment/.env credentials, connection pooling, validated requests, pagination, UTC serialization, source-aware queries, persisted SQL detection runs and transactional case/review operations with audit history. Offline checks pass; real MySQL tests are included but remain unexecuted locally because the database is unavailable. See `backend/VERIFICATION.md`. Keep the frontend in demo mode until database acceptance and all-screen API integration pass.
 
 Integration milestone: adapt backend DTOs to existing screen contracts; retain explicit demo mode until all seven screens work against the API. Test the full comment → account → network → case → report flow, invalid inputs, empty/error states, persistence and review consistency.
 

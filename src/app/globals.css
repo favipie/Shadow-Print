@@ -1,5 +1,65 @@
 @import "tailwindcss";
 @import "@xyflow/react/dist/style.css";
+.live-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.live-record > div {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) 3fr;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid #27303d;
+}
+.live-record dt {
+  color: #94a3b8;
+}
+.live-record dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.live-action {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.live-json {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.pagination {
+  justify-content: space-between;
+  margin-top: 16px;
+}
+.print-complete {
+  display: none;
+}
+.demo-mode-banner {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #c1ec80;
+  color: #10161e;
+  text-align: center;
+  padding: 10px;
+}
+.demo-mode-banner a {
+  text-decoration: underline;
+}
+@media print {
+  .screen-only,
+  .print-actions {
+    display: none !important;
+  }
+  .print-complete {
+    display: block;
+  }
+  .reports-layout {
+    display: block !important;
+  }
+}
 :root {
   color-scheme: dark;
   --bg: #0a0e14;
@@ -473,7 +533,10 @@ main {
     linear-gradient(#9cbd6b22 1px, transparent 1px),
     linear-gradient(90deg, #9cbd6b22 1px, transparent 1px),
     radial-gradient(circle at 70% 42%, #b6e37a33 0 2px, transparent 3px);
-  background-size: 24px 24px, 24px 24px, 38px 38px;
+  background-size:
+    24px 24px,
+    24px 24px,
+    38px 38px;
   transform: perspective(300px) rotateY(-12deg) scale(1.08);
 }
 .art-signal {
@@ -482,10 +545,20 @@ main {
   height: 150px;
   border: 1px solid #a9d878aa;
   border-radius: 50%;
-  box-shadow: 0 0 0 20px #a9d8780b, 0 0 0 48px #a9d87808;
+  box-shadow:
+    0 0 0 20px #a9d8780b,
+    0 0 0 48px #a9d87808;
 }
-.art-signal-one { top: 32px; left: 28%; }
-.art-signal-two { bottom: -28px; right: 14%; width: 100px; height: 100px; }
+.art-signal-one {
+  top: 32px;
+  left: 28%;
+}
+.art-signal-two {
+  bottom: -28px;
+  right: 14%;
+  width: 100px;
+  height: 100px;
+}
 .hero-art:after {
   content: "";
   position: absolute;
@@ -2282,6 +2355,9 @@ footer > span {
   }
   .printable-report h2 {
     font-size: 24pt;
+  }
+  .printable-report .callout {
+    display: block !important;
   }
   .printable-report h3 {
     break-after: avoid;

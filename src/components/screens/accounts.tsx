@@ -6,7 +6,6 @@ import {
   comments,
   devices,
   logins,
-  handle,
   stamp,
 } from "@/lib/investigation-data";
 import { analyzeAccount, route, scorePriority } from "@/lib/demo-engine";

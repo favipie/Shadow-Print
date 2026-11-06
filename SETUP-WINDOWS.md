@@ -1,23 +1,46 @@
-# Windows setup
+﻿# Windows startup
 
-Install Git, Node.js 20.9 or newer, pnpm, VS Code, and the VS Code Codex extension. Install SQL Server Express and a management tool only if you will work on the later backend/database milestone.
+Use Node.js 22, pnpm, Python 3.12+, uv, ODBC Driver 18 and the existing SQL Server 2025 Express instance. All startup commands below run from `C:\Users\favian\Projects\Shadow-Print` unless stated otherwise.
 
-```powershell
-git clone https://github.com/favipie/shadowprint.git
-cd shadowprint
-pnpm install --frozen-lockfile
-pnpm dev
-```
-
-Open the local address printed by Next.js. Validate before committing:
+If Node is not on PATH, this workspace has a portable runtime:
 
 ```powershell
-pnpm test
-pnpm typecheck
-pnpm build
-node node_modules/tsx/dist/cli.mjs --test database/tests/artifacts.test.ts
+$env:PATH = (Join-Path (Get-Location) '.tools/node-v22.23.4-win-x64') + ';' + $env:PATH
 ```
 
-For local SQL Server Express, confirm the Windows service is running and that Windows Authentication can connect to your intended local instance/database. Do not expose a database port publicly. The current SQL source is MySQL reference code; SQL Server setup and execution remain pending under `database/sqlserver/`.
+A fresh clone should install Node 22 normally; `.tools` is intentionally not committed.
 
-Use Codex Cloud against the GitHub repository and VS Code against a local clone. At the start of work run `git status` and `git pull --ff-only`; after verified work use `git add`, `git commit`, and `git push`. Never use a force push for this repository. Pull before pushing from either Cloud or local work so the two environments do not overwrite each other.
+Install dependencies:
+
+```powershell
+corepack pnpm install --frozen-lockfile
+cd backend
+uv sync --locked --python 3.12
+```
+
+Local configuration has already been created in ignored files. On a fresh clone, create it once:
+
+```powershell
+uv run python configure_local.py --server 'favipie\SQLEXPRESS' --database shadowprint_db
+```
+
+This creates a generated shared key without printing it and preserves any existing environment files. It does not touch database contents. The API key must never use a `NEXT_PUBLIC_` prefix.
+
+Start backend in terminal 1:
+
+```powershell
+cd C:\Users\favian\Projects\Shadow-Print\backend
+uv run python -m uvicorn main:app --host 127.0.0.1 --port 8000
+```
+
+Start frontend in terminal 2:
+
+```powershell
+cd C:\Users\favian\Projects\Shadow-Print
+$env:PATH = (Join-Path (Get-Location) '.tools/node-v22.23.4-win-x64') + ';' + $env:PATH
+corepack pnpm dev
+```
+
+Open http://127.0.0.1:3000. `/health/ready` on port 8000 checks the SQL Server schema and configured investigator. `/?mode=demo` is an explicit browser-fixture fallback. To run the production build, use `corepack pnpm build` followed by `corepack pnpm start` with the backend running.
+
+For tests, see [database setup](DATABASE-SETUP.md) and [integration verification](INTEGRATION-VERIFICATION.md). Browser tests use a separate `_test` database and ports 8001/3002. Never run migrations or reseed against `shadowprint_db`.

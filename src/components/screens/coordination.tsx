@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { clusters, comments, handle, stamp } from "@/lib/investigation-data";
+import { clusters, comments } from "@/lib/investigation-data";
 import { coordinationEvidence, route } from "@/lib/demo-engine";
 import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";
