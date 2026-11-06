@@ -1,9 +1,9 @@
 import { Workspace } from "@/components/workspace";
-import { DemoProvider } from "@/components/demo-provider";
+import { SqlProvider } from "@/components/data-provider";
 export default function Home() {
   return (
-    <DemoProvider>
+    <SqlProvider>
       <Workspace />
-    </DemoProvider>
+    </SqlProvider>
   );
 }

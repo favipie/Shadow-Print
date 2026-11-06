@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { useDataset, useLive } from "@/components/data-provider";
 import {
   Activity,
   ArrowDownToLine,
@@ -82,6 +83,9 @@ function PanelTitle({
   );
 }
 export function Workspace() {
+  const data = useDataset();
+  const { accounts, activity, events, comments, profiles } = data;
+  const live = useLive();
   const [section, setSection] = useState("overview");
   const [routeQuery, setRouteQuery] = useState("");
   const { state, update, ready, storageError } = useDemo();
@@ -103,11 +107,23 @@ export function Workspace() {
       return ids.length > 0 && ids.every((id) => state.reviewed.includes(id));
     })
     .map((e) => e.id);
-  function setReviewed(fn: (ids: string[]) => string[]) {
+  async function setReviewed(fn: (ids: string[]) => string[]) {
     const next = fn(reviewed);
     const changed = events.filter(
       (e) => next.includes(e.id) !== reviewed.includes(e.id),
     );
+    if (live) {
+      for (const e of changed) {
+        for (const comment of comments.filter((c) => c.eventId === e.id)) {
+          try {
+            await live.review(comment.id, next.includes(e.id));
+          } catch {
+            return;
+          }
+        }
+      }
+      return;
+    }
     update("Updated event review state", (s) => {
       let ids = [...s.reviewed];
       for (const e of changed) {
@@ -135,18 +151,19 @@ export function Workspace() {
   }, []);
   const period = activity.slice(-days);
   const current = sections.find((s) => s.slug === section)!;
-  const periodEvents = events.filter((e) => e.day >= 19 - days);
+  const firstDay = (activity.at(-1)?.day ?? 18) - days + 1;
+  const periodEvents = events.filter((e) => e.day >= firstDay);
   const filtered = useMemo(
     () =>
       events.filter(
         (e) =>
-          e.day >= 19 - days &&
+          e.day >= firstDay &&
           (priority === "All priorities" || e.priority === priority) &&
           `${e.account} ${e.category} ${e.id}`
             .toLowerCase()
             .includes(query.toLowerCase()),
       ),
-    [days, priority, query],
+    [firstDay, priority, query, events],
   );
   const categoryCounts = Object.entries(
     periodEvents.reduce<Record<string, number>>(
@@ -225,7 +242,12 @@ export function Workspace() {
           <div className="demo-card">
             <Database size={17} />
             <span>
-              Built on evidence.<small>Synthetic data · UI preview</small>
+              Built on evidence.
+              <small>
+                {live
+                  ? "Synthetic data · SQL connected"
+                  : "Synthetic data · UI preview"}
+              </small>
             </span>
             <i />
           </div>
@@ -234,11 +256,17 @@ export function Workspace() {
             onClick={() =>
               setDetail({
                 title: "An evidence-first workspace",
-                subtitle: "SHADOWPRINT · Phase 2",
+                subtitle: live
+                  ? "SHADOWPRINT · SQL workspace"
+                  : "SHADOWPRINT · Phase 2",
                 records: [
                   "All identities, events, labels, and metrics in this preview are fictional fixtures.",
-                  "Cases, notes, thresholds and comment review marks save in this browser. No backend or database is connected.",
-                  "Navigate from comments to accounts, network evidence, cases and reports. All analysis is frontend-only.",
+                  live
+                    ? "Cases, notes and reviews persist in SQL Server. Detection thresholds are read-only SQL rules."
+                    : "Cases, notes, thresholds and comment review marks save in this browser. No backend or database is connected.",
+                  live
+                    ? "Navigate from comments to accounts, SQL network evidence, cases and reports."
+                    : "Navigate from comments to accounts, network evidence, cases and reports. All analysis is frontend-only.",
                 ],
               })
             }
@@ -389,7 +417,10 @@ export function Workspace() {
                     <br />
                     Investigate patterns. Follow the evidence.
                   </p>
-                  <Button onClick={() => inspect(events[0])}>
+                  <Button
+                    disabled={!events.length}
+                    onClick={() => events[0] && inspect(events[0])}
+                  >
                     Examine priority signal <ArrowUpRight size={16} />
                   </Button>
                 </div>
@@ -399,17 +430,21 @@ export function Workspace() {
                   <span className="art-signal art-signal-two" />
                   <div className="art-corner">RELATIONSHIP STUDY — 001</div>
                   <span className="art-label">
-                    <i /> 3 ACCOUNTS / 1 SHARED TARGET
+                    <i /> ORIGINAL RECORDS / SHARED CONTEXT
                   </span>
                 </div>
                 <span className="hero-index">SHADOWPRINT / FIELD NOTES</span>
               </section>
               <div className="dataset-line">
                 <span>
-                  <Database size={13} /> Fixed demo window: {period[0].label}
-                  –18, 2026
+                  <Database size={13} /> Dataset window: {period[0]?.label} —{" "}
+                  {period.at(-1)?.label}
                 </span>
-                <span>All counts derived from inspectable fixtures</span>
+                <span>
+                  {live
+                    ? "SQL source records · synthetic provenance"
+                    : "All counts derived from inspectable fixtures"}
+                </span>
               </div>
               <section className="metrics" aria-label="Overview metrics">
                 {[
@@ -422,17 +457,23 @@ export function Workspace() {
                     icon: Command,
                   },
                   {
-                    title: "Flagged comments",
+                    title: "Annotated comments",
                     value: period.reduce((n, a) => n + a.flagged, 0).toString(),
                     sub: "Authored labels + rule examples",
                     icon: ShieldAlert,
                   },
                   {
                     title: "Matching groups",
-                    value: coordinationEvidence(state.thresholds).length
-                      ? "1"
-                      : "0",
-                    sub: "Current frontend thresholds",
+                    value: live
+                      ? data.clusters
+                          .filter((c) => c.kind === "Behavioral scenario")
+                          .length.toString()
+                      : coordinationEvidence(state.thresholds).length
+                        ? "1"
+                        : "0",
+                    sub: live
+                      ? "Current SQL windows"
+                      : "Current frontend thresholds",
                     icon: Network,
                   },
                   {
@@ -470,12 +511,12 @@ export function Workspace() {
                   >
                     <span className="chart-legend">
                       <i />
-                      Flagged comments
+                      Annotated comments
                     </span>
                   </PanelTitle>
                   <div className="chart-summary">
                     <strong>{period.reduce((n, a) => n + a.flagged, 0)}</strong>
-                    <span>flagged sample comments in period</span>
+                    <span>annotated comments in dataset period</span>
                     <span className="chart-window">{days}-DAY WINDOW</span>
                   </div>
                   <ActivityChart days={days} />
@@ -619,6 +660,7 @@ export function Workspace() {
                           <td className="date-cell">{e.time}</td>
                           <td>
                             <button
+                              disabled={live?.busy}
                               className={`review-button ${reviewed.includes(e.id) ? "reviewed" : ""}`}
                               onClick={() =>
                                 setReviewed((r) =>
@@ -722,7 +764,12 @@ export function Workspace() {
                       <span className="avatar">{a.initials}</span>
                       <span>
                         <strong>@{a.name}</strong>
-                        <small>{a.signals} authored signal groups</small>
+                        <small>
+                          {a.signals}{" "}
+                          {live
+                            ? "triggered SQL rules"
+                            : "authored signal groups"}
+                        </small>
                       </span>
                       <Badge value={a.priority} />
                     </button>
@@ -731,7 +778,9 @@ export function Workspace() {
                 <section className="panel priority-panel">
                   <PanelTitle
                     eyebrow="TRIAGE"
-                    title="Authored group priority"
+                    title={
+                      live ? "SQL review priority" : "Authored group priority"
+                    }
                   />
                   <div className="priority-total">
                     <strong>
@@ -780,7 +829,11 @@ export function Workspace() {
                   <span className="footer-divider">/</span> Evidence before
                   assumptions.
                 </span>
-                <span>Phase 02 · Frontend only</span>
+                <span>
+                  {live
+                    ? "SQL investigation workspace"
+                    : "Phase 02 · Frontend only"}
+                </span>
               </footer>
             </>
           )}

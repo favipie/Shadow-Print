@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { useDataset, useLive } from "@/components/data-provider";
+import { groupedFindings } from "@/lib/api";
 import { Network, ScanLine, ShieldCheck } from "lucide-react";
 import {
   profiles,
@@ -21,10 +23,13 @@ import {
   SectionHead,
 } from "./shared";
 export default function AccountScreen({ params }: { params: URLSearchParams }) {
+  const data = useDataset();
+  const { profiles, comments, devices, logins, handle } = data;
+  const live = useLive();
   const { state } = useDemo();
   const [search, setSearch] = useState("");
   const [ran, setRan] = useState<string | null>(null);
-  const id = params.get("account") ?? profiles[0].id;
+  const id = params.get("account") ?? profiles[0]?.id;
   const selected = profiles.find((p) => p.id === id);
   const list = profiles.filter((p) =>
     `${p.handle} ${p.id}`.toLowerCase().includes(search.toLowerCase()),
@@ -43,8 +48,12 @@ export default function AccountScreen({ params }: { params: URLSearchParams }) {
   const own = comments
     .filter((c) => c.accountId === id)
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
-  const findings = analyzeAccount(id, state.thresholds);
-  const score = findings.reduce((n, f) => n + f.weight, 0);
+  const findings = live
+    ? groupedFindings(data, id!)
+    : analyzeAccount(id!, state.thresholds);
+  const score = live
+    ? (selected.score ?? 0)
+    : findings.reduce((n, f) => n + f.weight, 0);
   const analysisKey = id + JSON.stringify(state.thresholds);
   const related = profiles.filter(
     (p) => p.id !== id && p.devices.some((d) => selected.devices.includes(d)),
@@ -105,7 +114,7 @@ export default function AccountScreen({ params }: { params: URLSearchParams }) {
             </div>
             <div>
               <strong>{new Set(own.map((c) => c.targetId)).size}</strong>
-              <small>Targets in fixture</small>
+              <small>Targets in source data</small>
             </div>
             <div>
               <strong>{selected.created}</strong>
@@ -113,9 +122,21 @@ export default function AccountScreen({ params }: { params: URLSearchParams }) {
             </div>
           </div>
           <div className="action-row">
-            <Button onClick={() => setRan(analysisKey)}>
+            <Button
+              disabled={live?.busy}
+              onClick={async () => {
+                if (live) {
+                  try {
+                    await live.runDetection();
+                  } catch {
+                    return;
+                  }
+                }
+                setRan(analysisKey);
+              }}
+            >
               <ScanLine size={15} />
-              Run demo analysis
+              {live ? "Run SQL detection" : "Run demo analysis"}
             </Button>
             <Button asChild variant="outline">
               <a href={route("network", "account", id)}>
@@ -131,10 +152,14 @@ export default function AccountScreen({ params }: { params: URLSearchParams }) {
         </section>
         <section className="panel">
           <SectionHead
-            label="EXPLAINABLE FRONTEND RULES · V1"
+            label={
+              live
+                ? "EXPLAINABLE SQL RULES · V1"
+                : "EXPLAINABLE FRONTEND RULES · V1"
+            }
             title="Investigation findings"
           />
-          {ran !== analysisKey ? (
+          {!live && ran !== analysisKey ? (
             <div className="callout">
               Run demo analysis to evaluate this account against the current
               thresholds. This evaluates local records only.
@@ -195,7 +220,7 @@ export default function AccountScreen({ params }: { params: URLSearchParams }) {
               </div>
             ))
           ) : (
-            <p className="subtle">No device association in this fixture.</p>
+            <p className="subtle">No device association in the source data.</p>
           )}
           <div className="action-row">
             {related.map((p) => (

@@ -70,8 +70,8 @@ export type CommentRecord = {
   text: string;
   at: string;
   category: string;
-  source: "Authored label" | "Rule example" | "Unlabeled";
-  eventId?: string;
+  source: "Authored label" | "Rule example" | "Unlabeled" | "Public dataset" | "Human review";
+  eventId?: string | null;
 };
 export const comments: CommentRecord[] = [
   ...["A-001", "A-002", "A-003"].map((accountId, i) => ({

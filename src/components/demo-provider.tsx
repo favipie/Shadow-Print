@@ -12,7 +12,7 @@ import {
   type DemoState,
 } from "@/lib/demo-engine";
 const KEY = "shadowprint.demo.v2";
-const Context = createContext<{
+export const DemoContext = createContext<{
   state: DemoState;
   update: (action: string, fn: (state: DemoState) => DemoState) => void;
   ready: boolean;
@@ -57,13 +57,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     });
   }
   return (
-    <Context.Provider value={{ state, update, ready, storageError }}>
+    <DemoContext.Provider value={{ state, update, ready, storageError }}>
       {children}
-    </Context.Provider>
+    </DemoContext.Provider>
   );
 }
 export function useDemo() {
-  const value = useContext(Context);
+  const value = useContext(DemoContext);
   if (!value) throw Error("DemoProvider missing");
   return value;
 }

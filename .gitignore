@@ -19,13 +19,19 @@ yarn-debug.log*
 *.pfx
 *.p12
 
-# Python / FastAPI (future backend)
+# Python / FastAPI
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .venv/
+.python/
+.pnpm-store/
+.pnpm-cache/
+backend/.test-output/
+playwright-report/
+test-results/
 venv/
 env/
 

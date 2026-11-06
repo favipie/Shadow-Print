@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { useDataset, useLive } from "@/components/data-provider";
+import { API_BASE, groupedFindings } from "@/lib/api";
 import { Printer, Download } from "lucide-react";
 import { comments, handle, limitation, stamp } from "@/lib/investigation-data";
 import {
@@ -13,6 +15,9 @@ import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";
 import { AccountLink, Empty, EvidenceRows, Field, SectionHead } from "./shared";
 export default function ReportsScreen({ params }: { params: URLSearchParams }) {
+  const data = useDataset();
+  const { comments, handle } = data;
+  const live = useLive();
   const { state } = useDemo();
   const [notice, setNotice] = useState("");
   const selected = state.cases.find(
@@ -35,12 +40,20 @@ export default function ReportsScreen({ params }: { params: URLSearchParams }) {
     ]),
   ];
   const findings = ids.flatMap((id) =>
-    analyzeAccount(id, state.thresholds).map((f) => ({ ...f, accountId: id })),
+    (live
+      ? groupedFindings(data, id)
+      : analyzeAccount(id, state.thresholds)
+    ).map((f) => ({ ...f, accountId: id })),
   );
   const maxScore = Math.max(
     0,
     ...ids.map((id) =>
-      analyzeAccount(id, state.thresholds).reduce((n, f) => n + f.weight, 0),
+      live
+        ? (data.profiles.find((p) => p.id === id)?.score ?? 0)
+        : analyzeAccount(id, state.thresholds).reduce(
+            (n, f) => n + f.weight,
+            0,
+          ),
     ),
   );
   const records = comments
@@ -48,6 +61,15 @@ export default function ReportsScreen({ params }: { params: URLSearchParams }) {
     .sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
   function exportReport() {
     if (!selected) return;
+    if (live) {
+      window.location.assign(
+        API_BASE +
+          "/api/reports/" +
+          encodeURIComponent(selected.id) +
+          "?format=csv",
+      );
+      return;
+    }
     const fields = [
       selected.id,
       selected.title,
@@ -120,7 +142,21 @@ export default function ReportsScreen({ params }: { params: URLSearchParams }) {
             <Download size={15} />
             Download report CSV
           </Button>
-          <Button variant="outline" onClick={() => window.print()}>
+          <Button
+            variant="outline"
+            onClick={() =>
+              live
+                ? window.open(
+                    API_BASE +
+                      "/api/reports/" +
+                      encodeURIComponent(selected.id) +
+                      "?format=html",
+                    "_blank",
+                    "noopener,noreferrer",
+                  )
+                : window.print()
+            }
+          >
             <Printer size={15} />
             Print report
           </Button>
@@ -145,7 +181,7 @@ export default function ReportsScreen({ params }: { params: URLSearchParams }) {
           </p>
           <small>
             Case updated {stamp(selected.updatedAt)} · Rule version v1 · current
-            browser thresholds
+            {live ? "SQL thresholds" : "browser thresholds"}
           </small>
         </header>
         <section>
@@ -165,8 +201,8 @@ export default function ReportsScreen({ params }: { params: URLSearchParams }) {
         <section>
           <h3>Detected patterns</h3>
           <p className="subtle">
-            Computed across each associated account’s full fixture history,
-            which may include records beyond this case’s evidence register.
+            Computed across each associated account’s full source history, which
+            may include records beyond this case’s evidence register.
           </p>
           {findings.length ? (
             findings.map((f) => (
@@ -179,7 +215,7 @@ export default function ReportsScreen({ params }: { params: URLSearchParams }) {
               </div>
             ))
           ) : (
-            <p>No configured frontend rules triggered.</p>
+            <p>No configured rules triggered.</p>
           )}
         </section>
         <section>
@@ -213,7 +249,10 @@ export default function ReportsScreen({ params }: { params: URLSearchParams }) {
           <p>
             Labels are authored examples. Shared devices are not identity
             evidence. Benign repetitions and shared networks can produce false
-            positives. No production classifier or SQL engine is connected.
+            positives.{" "}
+            {live
+              ? "SQL rules use supplied annotations; no production classifier is claimed."
+              : "No production classifier or SQL engine is connected."}
           </p>
           <small>
             Thresholds: repetition ≥{state.thresholds.repetition} in{" "}

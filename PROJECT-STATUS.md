@@ -1,9 +1,13 @@
-# Project status
+# Project status — 6 November 2026
 
-SHADOWPRINT is a synthetic, frontend-first investigation demo for cyberbullying, spam and coordinated-harassment review. Phase 1 dashboard and Phase 2 seven-screen interface are complete. The application has 9 synthetic accounts, 28 comments and explicit benign controls. It is not a moderation system or an identity-resolution system.
+SHADOWPRINT now runs as Next.js → FastAPI → SQL Server Express with Windows Authentication. The dashboard and seven investigation screens retrieve SQL-backed data. Cases, notes, evidence associations, status decisions and reviews persist through validated API operations with audit history.
 
-The frontend uses Next.js App Router, TypeScript, Tailwind CSS v4, Recharts, Radix UI and React Flow. Local browser storage holds demo reviews/cases/thresholds. There is no FastAPI service, authentication, real account data, live content feed or database-backed UI.
+Phase 3: all 22 tables, original seed, views and procedures were verified on SQL Server. The original MySQL implementation remains reference material; live MySQL verification is not claimed.
 
-Phase 3 source includes a normalized 22-table MySQL reference model plus generator, views, procedures, documentation and tests. Its real MySQL verification is blocked. SQL Server Express conversion/import is also pending. The original MySQL work is retained for academic reference; a SQL Server implementation will live under `database/sqlserver/`.
+Phase 4–5: modular backend, typed API client/provider, screen integration, SQL report exports, loading/errors, comment pagination, isolated database tests and full browser workflow are implemented. Thresholds remain read-only SQL metadata. The real application does not use browser-local mock persistence.
 
-Known pending work: unobstructed mobile visual QA, PDF/print verification, MySQL or SQL Server live integration, FastAPI backend, frontend integration, end-to-end testing, academic report, presentation and viva preparation.
+Verified on 5 November: 11 backend tests passed in a disposable SQL Server database; 26 frontend/artifact tests passed (original 23 plus 3 API-provider tests); all 3 browser workflow/mobile/error tests passed. Desktop/mobile screenshots and the generated A4 report were visually reviewed; the final sample report fits one page. Final build and delivery details are recorded in backend/PHASE45-REPORT.md.
+
+Read-only recheck on 6 November: shadowprint_db still has 22 tables, 9 accounts, 28 comments, 25 annotations, 3 investigations and 11 findings. Scores remain 30/55/50/25/25 for A-001/A-002/A-003/A-004/A-006; others zero. Modifying tests ran only in uniquely named disposable databases, which were removed afterward.
+
+Remaining: academic report, presentation, viva preparation; optional deployment; production authentication/authorization, least-privilege deployment provisioning, scalable imports/queries, edit-conflict handling and performance measurements. The synthetic workload generator still emits MySQL SQL. None of those later deliverables is claimed complete.

@@ -1,5 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
+import { useDataset, useLive } from "@/components/data-provider";
+import type { WorkspaceData } from "@/lib/api";
 import {
   ReactFlow,
   Background,
@@ -21,35 +23,47 @@ import {
 import { route } from "@/lib/demo-engine";
 import { Button } from "@/components/ui/button";
 import { AccountLink, Empty, EvidenceRows, Field, SectionHead } from "./shared";
-const initialNodes: Node[] = [
-  ...profiles.map((p, i) => ({
-    id: p.id,
-    position: { x: 70 + (i % 3) * 300, y: 70 + Math.floor(i / 3) * 190 },
-    data: { label: "@" + p.handle },
-    style: {
-      background: "#1d3030",
-      color: "#e2f3e9",
-      border: "1px solid #406958",
-      borderRadius: 9,
-      width: 175,
-      fontSize: 12,
-    },
-  })),
-  ...devices.map((d, i) => ({
-    id: d.id,
-    position: { x: 1050 + (i % 2) * 250, y: 70 + Math.floor(i / 2) * 190 },
-    data: { label: d.id + " · " + d.name },
-    style: {
-      background: "#252837",
-      color: "#d3d8ef",
-      border: "1px solid #565c77",
-      borderRadius: 7,
-      width: 185,
-      fontSize: 11,
-    },
-  })),
-];
+function buildNodes(
+  profiles: WorkspaceData["profiles"],
+  devices: WorkspaceData["devices"],
+): Node[] {
+  return [
+    ...profiles.map((p, i) => ({
+      id: p.id,
+      position: { x: 70 + (i % 3) * 300, y: 70 + Math.floor(i / 3) * 190 },
+      data: { label: "@" + p.handle },
+      style: {
+        background: "#1d3030",
+        color: "#e2f3e9",
+        border: "1px solid #406958",
+        borderRadius: 9,
+        width: 175,
+        fontSize: 12,
+      },
+    })),
+    ...devices.map((d, i) => ({
+      id: d.id,
+      position: { x: 1050 + (i % 2) * 250, y: 70 + Math.floor(i / 2) * 190 },
+      data: { label: d.id + " · " + d.name },
+      style: {
+        background: "#252837",
+        color: "#d3d8ef",
+        border: "1px solid #565c77",
+        borderRadius: 7,
+        width: 185,
+        fontSize: 11,
+      },
+    })),
+  ];
+}
 export default function NetworkScreen({ params }: { params: URLSearchParams }) {
+  const { profiles, devices, connections, comments, logins, handle } =
+    useDataset();
+  const live = useLive();
+  const initialNodes = useMemo(
+    () => buildNodes(profiles, devices),
+    [profiles, devices],
+  );
   const focus = params.get("account");
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [kind, setKind] = useState("All");
@@ -97,6 +111,11 @@ export default function NetworkScreen({ params }: { params: URLSearchParams }) {
   }));
   const shownNodes = nodes
     .filter((n) => focusedIds.has(n.id))
+    .filter(
+      (n) =>
+        kind === "All" ||
+        visibleConnections.some((c) => c.source === n.id || c.target === n.id),
+    )
     .map((n) => ({
       ...n,
       selected: n.id === selected,
@@ -112,9 +131,11 @@ export default function NetworkScreen({ params }: { params: URLSearchParams }) {
   return (
     <div className="screen-stack">
       <div className="callout">
-        Authored mock connections with original record IDs. A shared device is
-        an association—not proof of identity. Graph edges do not change when
-        detection thresholds change.
+        {live
+          ? "SQL-derived relationships with original evidence IDs."
+          : "Authored mock connections with original record IDs."}{" "}
+        A shared device is an association requiring context and contributes zero
+        risk points.
       </div>
       <div className="network-layout">
         <section className="panel graph-panel">
@@ -149,7 +170,7 @@ export default function NetworkScreen({ params }: { params: URLSearchParams }) {
             aria-label="Account and device relationship graph"
           >
             <ReactFlow
-              key={focus ?? "all"}
+              key={(focus ?? "all") + kind}
               nodes={shownNodes}
               edges={edges}
               onNodesChange={onNodesChange}
@@ -246,7 +267,7 @@ export default function NetworkScreen({ params }: { params: URLSearchParams }) {
                     (c) => c.source === profile.id || c.target === profile.id,
                   ).length
                 }{" "}
-                authored connections
+                evidence-backed connections
               </p>
             </>
           ) : (

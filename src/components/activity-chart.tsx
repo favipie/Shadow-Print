@@ -9,7 +9,9 @@ import {
   YAxis,
 } from "recharts";
 import { activity } from "@/lib/mock-data";
+import { useDataset } from "./data-provider";
 export function ActivityChart({ days }: { days: number }) {
+  const { activity } = useDataset();
   return (
     <div
       className="chart"
@@ -53,9 +55,10 @@ export function ActivityChart({ days }: { days: number }) {
             }}
           />
           <Area
+            isAnimationActive={false}
             type="monotone"
             dataKey="flagged"
-            name="Flagged comments"
+            name="Annotated comments"
             stroke="#2dd4bf"
             strokeWidth={2.5}
             fill="url(#areaFill)"

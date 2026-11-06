@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useDataset, useLive } from "@/components/data-provider";
 import {
   profiles,
   comments,
@@ -13,6 +14,104 @@ import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";
 import { Field, SectionHead } from "./shared";
 export default function SettingsScreen() {
+  const live = useLive();
+  return live ? <SqlSettings /> : <DemoSettings />;
+}
+function SqlSettings() {
+  const data = useDataset();
+  const live = useLive()!;
+  return (
+    <div className="screen-stack">
+      <div className="settings-grid">
+        <section className="panel">
+          <SectionHead
+            label="AUTHORITATIVE SQL RULES · READ ONLY"
+            title="Detection thresholds"
+          />
+          <p className="subtle">
+            These versioned thresholds are implemented in SQL views. Changing
+            them requires a reviewed database migration.
+          </p>
+          {data.settings.rules.map((r) => (
+            <div className="device-row" key={r.code + r.version}>
+              <h3>
+                {r.code} · v{r.version}
+              </h3>
+              <p>{r.description}</p>
+              <small>
+                Minimum {r.min_count} · window {r.window_seconds}s · weight +
+                {r.weight}
+              </small>
+            </div>
+          ))}
+          <p>
+            Shared devices: zero risk points. Scores are review heuristics, not
+            probabilities.
+          </p>
+        </section>
+        <section className="panel">
+          <SectionHead
+            label="SQL SERVER / LOCAL DEVELOPMENT"
+            title="Dataset & configuration"
+          />
+          <p>
+            <span className="status-label">Connected</span> ·{" "}
+            {data.settings.database}
+          </p>
+          <p>
+            {data.profiles.length} accounts · {data.comments.length} comments ·{" "}
+            {data.devices.length} devices
+          </p>
+          <p>
+            Current detections: {data.dashboard.detectedComments} evidence
+            comments · {data.dashboard.findings} latest-run findings.
+          </p>
+          <p>
+            Fixed local demo reviewer. Production authentication and
+            authorization are not implemented.
+          </p>
+          <Button
+            disabled={live.busy}
+            onClick={() => void live.refresh().catch(() => {})}
+          >
+            Refresh database state
+          </Button>
+          {data.settings.provenance.map((p) => (
+            <div className="device-row" key={p.id}>
+              <h3>
+                {p.name} · {p.version}
+              </h3>
+              <p>
+                {p.kind} / {p.id}
+              </p>
+              <p>{p.description}</p>
+              <small>{p.license_text}</small>
+              {p.source_url && <p>{p.source_url}</p>}
+            </div>
+          ))}
+          <div className="callout">{data.settings.limitation}</div>
+        </section>
+      </div>
+      <section className="panel">
+        <SectionHead
+          label="SQL AUDIT HISTORY / LATEST 200 ACTIONS"
+          title="Workspace changes"
+        />
+        {data.state.audit.length ? (
+          data.state.audit.map((a) => (
+            <div className="device-row" key={a.id}>
+              <strong>{a.action}</strong>
+              <small>{stamp(a.at)}</small>
+            </div>
+          ))
+        ) : (
+          <p>No audit records.</p>
+        )}
+      </section>
+    </div>
+  );
+}
+function DemoSettings() {
   const { state, update, storageError } = useDemo();
   const [draft, setDraft] = useState(state.thresholds);
   const [notice, setNotice] = useState("");

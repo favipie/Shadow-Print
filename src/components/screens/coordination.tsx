@@ -1,16 +1,32 @@
 "use client";
 import { useState } from "react";
+import { useDataset, useLive } from "@/components/data-provider";
 import { clusters, comments, handle, stamp } from "@/lib/investigation-data";
 import { coordinationEvidence, route } from "@/lib/demo-engine";
 import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";
 import { AccountLink, Empty, EvidenceRows, Field, SectionHead } from "./shared";
 export default function CoordinationScreen() {
+  const { clusters, comments, handle } = useDataset();
+  const live = useLive();
   const { state } = useDemo();
-  const [selected, setSelected] = useState("CL-001");
+  const [selected, setSelected] = useState(clusters[0]?.id ?? "");
   const [filter, setFilter] = useState("All scenarios");
-  const group = clusters.find((c) => c.id === selected)!;
-  const matching = coordinationEvidence(state.thresholds);
+  const group = clusters.find((c) => c.id === selected) ?? clusters[0];
+  if (!group)
+    return (
+      <section className="panel">
+        <Empty title="No activity groups" />
+      </section>
+    );
+  const matching = live
+    ? comments.filter((c) =>
+        clusters.some(
+          (g) =>
+            g.kind === "Behavioral scenario" && g.commentIds.includes(c.id),
+        ),
+      )
+    : coordinationEvidence(state.thresholds);
   const qualifies = group.commentIds.some((id) =>
     matching.some((c) => c.id === id),
   );
@@ -23,9 +39,10 @@ export default function CoordinationScreen() {
   return (
     <div className="screen-stack">
       <div className="callout">
-        Frontend scenario analysis · COORD-01 v1. Requires identical normalized
-        text, the same target, at least {state.thresholds.coordinationAccounts}{" "}
-        accounts and a {state.thresholds.coordinationSeconds}-second window.
+        {live ? "SQL window analysis" : "Frontend scenario analysis"} · COORD-01
+        v1. Requires identical normalized text, the same target, at least{" "}
+        {state.thresholds.coordinationAccounts} accounts and a{" "}
+        {state.thresholds.coordinationSeconds}-second window.
       </div>
       <div className="screen-grid">
         <aside className="panel">
@@ -38,6 +55,7 @@ export default function CoordinationScreen() {
               <option>All scenarios</option>
               <option>Behavioral scenario</option>
               <option>Benign control</option>
+              {live && <option>Device context</option>}
             </select>
           </Field>
           {rows.map((c) => (
@@ -92,8 +110,8 @@ export default function CoordinationScreen() {
               <div>
                 <strong>
                   {Math.round(
-                    (Date.parse(records.at(-1)!.at) -
-                      Date.parse(records[0].at)) /
+                    (Date.parse(records.at(-1)?.at ?? "1970-01-01") -
+                      Date.parse(records[0]?.at ?? "1970-01-01")) /
                       1000,
                   )}
                   s

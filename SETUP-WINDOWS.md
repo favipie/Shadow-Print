@@ -1,23 +1,43 @@
 # Windows setup
 
-Install Git, Node.js 20.9 or newer, pnpm, VS Code, and the VS Code Codex extension. Install SQL Server Express and a management tool only if you will work on the later backend/database milestone.
+Run Next.js → FastAPI → SQL Server Express locally, without Docker. The existing shadowprint_db is populated: do not rerun migration or seed scripts.
+
+Use Node.js 20.9+, pnpm, Python 3.12, ODBC Driver 18 and the running SQL Server instance. [Backend setup](backend/README.md) contains complete environment, connection and test commands.
+
+From the repository root:
 
 ```powershell
-git clone https://github.com/favipie/shadowprint.git
-cd shadowprint
 pnpm install --frozen-lockfile
-pnpm dev
+uv pip sync --python .venv/Scripts/python.exe backend/requirements.txt
+# Terminal 1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1 -Service Api
+# Terminal 2
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1 -Service Web
 ```
 
-Open the local address printed by Next.js. Validate before committing:
+The Web script supports -NodeExecutable 'C:\path\to\node.exe' when an installed Node executable is absent from PATH. Stop each terminal with Ctrl+C.
+
+Open http://127.0.0.1:3000 and http://127.0.0.1:8000/docs. Config lives in ignored backend/.env; copy backend/.env.example and adjust for your local instance.
+
+Read-only connectivity:
+
+```powershell
+Push-Location backend
+../.venv/Scripts/python.exe -m app.db
+Pop-Location
+```
+
+Validation:
 
 ```powershell
 pnpm test
 pnpm typecheck
 pnpm build
-node node_modules/tsx/dist/cli.mjs --test database/tests/artifacts.test.ts
+.venv/Scripts/python.exe -m pytest backend/tests -q
 ```
 
-For local SQL Server Express, confirm the Windows service is running and that Windows Authentication can connect to your intended local instance/database. Do not expose a database port publicly. The current SQL source is MySQL reference code; SQL Server setup and execution remain pending under `database/sqlserver/`.
+Full API/browser modifying tests use disposable databases and require permission to create/remove those databases. They never reset shadowprint_db. See the backend README for explicit integration-test commands.
 
-Use Codex Cloud against the GitHub repository and VS Code against a local clone. At the start of work run `git status` and `git pull --ff-only`; after verified work use `git add`, `git commit`, and `git push`. Never use a force push for this repository. Pull before pushing from either Cloud or local work so the two environments do not overwrite each other.
+The pnpm store/cache are project-local and ignored because the development environment's shared store was corrupted. esbuild's native-binary setup is explicitly allowed in pnpm-workspace.yaml.
+
+Never commit .env, passwords, tokens, database files, backups, environments or generated QA files. Use ordinary Git commits and fast-forward-safe synchronization; never force-push.

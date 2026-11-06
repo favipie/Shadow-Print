@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useDataset, useLive } from "@/components/data-provider";
 import { comments, handle, stamp } from "@/lib/investigation-data";
 import { csvText, download, route } from "@/lib/demo-engine";
 import { useDemo } from "@/components/demo-provider";
@@ -14,6 +15,9 @@ import {
   SectionHead,
 } from "./shared";
 export default function ThreatScreen({ params }: { params: URLSearchParams }) {
+  const { comments, handle } = useDataset();
+  const live = useLive();
+  const [page, setPage] = useState(0);
   const { state } = useDemo();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
@@ -38,6 +42,13 @@ export default function ThreatScreen({ params }: { params: URLSearchParams }) {
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
+  const currentPage = Math.min(
+    page,
+    Math.max(0, Math.ceil(rows.length / 20) - 1),
+  );
+  const shownRows = live
+    ? rows.slice(currentPage * 20, (currentPage + 1) * 20)
+    : rows;
   function clear() {
     setSearch("");
     setCategory("All");
@@ -72,7 +83,7 @@ export default function ThreatScreen({ params }: { params: URLSearchParams }) {
             {selected.source === "Authored label"
               ? "Label supplied by the fictional dataset author. No NLP model has run."
               : selected.source === "Rule example"
-                ? "Authored rule scenario. Use Account Investigator to run current frontend thresholds."
+                ? "Authored rule scenario. Inspect the account's explainable detection results."
                 : "Unlabeled benign control record."}
           </p>
           <div className="action-row">
@@ -173,6 +184,8 @@ export default function ThreatScreen({ params }: { params: URLSearchParams }) {
               <option>All</option>
               <option>Authored label</option>
               <option>Rule example</option>
+              {live && <option>Public dataset</option>}
+              {live && <option>Human review</option>}
               <option>Unlabeled</option>
             </select>
           </Field>
@@ -213,7 +226,7 @@ export default function ThreatScreen({ params }: { params: URLSearchParams }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((c) => (
+                  {shownRows.map((c) => (
                     <tr key={c.id}>
                       <td className="comment-text">
                         <a
@@ -241,6 +254,28 @@ export default function ThreatScreen({ params }: { params: URLSearchParams }) {
               </table>
             </div>
             {!rows.length && <Empty />}
+            {live && rows.length > 20 && (
+              <div className="action-row">
+                <Button
+                  variant="outline"
+                  disabled={currentPage === 0}
+                  onClick={() => setPage(currentPage - 1)}
+                >
+                  Previous comments
+                </Button>
+                <span>
+                  Page {Math.min(page + 1, Math.ceil(rows.length / 20))} of{" "}
+                  {Math.ceil(rows.length / 20)}
+                </span>
+                <Button
+                  variant="outline"
+                  disabled={currentPage + 1 >= Math.ceil(rows.length / 20)}
+                  onClick={() => setPage(currentPage + 1)}
+                >
+                  Next comments
+                </Button>
+              </div>
+            )}
           </>
         )}
         {notice && (

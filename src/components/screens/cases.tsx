@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useDataset, useLive } from "@/components/data-provider";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, Plus } from "lucide-react";
 import {
@@ -28,9 +29,11 @@ function CaseEditor({
   onClose,
 }: {
   record: CaseRecord;
-  onSave: (c: CaseRecord) => void;
+  onSave: (c: CaseRecord) => void | Promise<void>;
   onClose: () => void;
 }) {
+  const { profiles, comments, handle } = useDataset();
+  const live = useLive();
   const [draft, setDraft] = useState(record);
   const [error, setError] = useState("");
   function toggle(key: "accountIds" | "commentIds", id: string) {
@@ -55,22 +58,29 @@ function CaseEditor({
             {record.id ? "Edit investigation" : "New investigation"}
           </Dialog.Title>
           <Dialog.Description>
-            Local demo case. Choose evidence and record decisions; changes stay
-            in this browser.
+            {live
+              ? "Choose evidence and record decisions. Changes persist in SQL Server. Details and status save as separate audited operations."
+              : "Local demo case. Choose evidence and record decisions; changes stay in this browser."}
           </Dialog.Description>
           <form
             className="form-stack"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               const message = caseValidation(draft);
               setError(message);
               if (!message)
-                onSave({
-                  ...draft,
-                  title: draft.title.trim(),
-                  description: draft.description.trim(),
-                  decision: draft.decision.trim(),
-                });
+                try {
+                  await onSave({
+                    ...draft,
+                    title: draft.title.trim(),
+                    description: draft.description.trim(),
+                    decision: draft.decision.trim(),
+                  });
+                } catch (e) {
+                  setError(
+                    e instanceof Error ? e.message : "Case could not be saved.",
+                  );
+                }
             }}
           >
             <Field label="Case title">
@@ -148,7 +158,9 @@ function CaseEditor({
               </p>
             )}
             <div className="action-row">
-              <Button type="submit">Save case</Button>
+              <Button type="submit" disabled={live?.busy}>
+                Save case
+              </Button>
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
@@ -166,6 +178,8 @@ function CaseEditor({
   );
 }
 export default function CasesScreen({ params }: { params: URLSearchParams }) {
+  const { profiles, comments, clusters, handle } = useDataset();
+  const live = useLive();
   const { state, update } = useDemo();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All");
@@ -200,7 +214,14 @@ export default function CasesScreen({ params }: { params: URLSearchParams }) {
       updatedAt: new Date().toISOString(),
     });
   }
-  function save(draft: CaseRecord) {
+  async function save(draft: CaseRecord) {
+    if (live) {
+      const saved = await live.saveCase(draft);
+      setEditor(null);
+      window.location.hash = route("cases", "case", saved.id);
+      setNotice("Case saved to SQL Server.");
+      return;
+    }
     const id =
       draft.id || "SP-" + crypto.randomUUID().slice(0, 8).toUpperCase();
     const record = { ...draft, id, updatedAt: new Date().toISOString() };
@@ -214,8 +235,25 @@ export default function CasesScreen({ params }: { params: URLSearchParams }) {
     window.location.hash = route("cases", "case", id);
     setNotice("Case saved locally.");
   }
-  function attach() {
+  async function attach() {
     if (!selected) return;
+    if (live) {
+      try {
+        await live.saveCase({
+          ...selected,
+          accountIds: [
+            ...new Set([...selected.accountIds, ...inboundAccounts]),
+          ],
+          commentIds: [
+            ...new Set([...selected.commentIds, ...inboundComments]),
+          ],
+        });
+        setNotice("Evidence saved to " + selected.id + ".");
+      } catch {
+        setNotice("");
+      }
+      return;
+    }
     update(`Attached evidence to ${selected.id}`, (s) => ({
       ...s,
       cases: s.cases.map((c) =>
@@ -250,7 +288,10 @@ export default function CasesScreen({ params }: { params: URLSearchParams }) {
       )}
       <div className="screen-grid">
         <aside className="panel directory">
-          <SectionHead label="LOCAL CASEBOOK" title="Investigations">
+          <SectionHead
+            label={live ? "SQL CASEBOOK" : "LOCAL CASEBOOK"}
+            title="Investigations"
+          >
             <Button onClick={create}>
               <Plus size={14} />
               New
@@ -361,9 +402,19 @@ export default function CasesScreen({ params }: { params: URLSearchParams }) {
                 )}
                 <form
                   className="form-stack"
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     if (!note.trim()) return;
+                    if (live) {
+                      try {
+                        await live.addNote(selected.id, note.trim());
+                        setNote("");
+                        setNotice("Investigator note saved to SQL Server.");
+                      } catch {
+                        setNotice("");
+                      }
+                      return;
+                    }
                     const at = new Date().toISOString();
                     update(`Added note to ${selected.id}`, (s) => ({
                       ...s,
@@ -390,7 +441,7 @@ export default function CasesScreen({ params }: { params: URLSearchParams }) {
                       placeholder="Record context, uncertainties, and next steps…"
                     />
                   </Field>
-                  <Button disabled={!note.trim()} type="submit">
+                  <Button disabled={!note.trim() || live?.busy} type="submit">
                     Add note
                   </Button>
                 </form>

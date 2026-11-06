@@ -1,4 +1,5 @@
 "use client";
+import { cloneElement, isValidElement, useId, type ReactElement } from "react";
 import { ArrowUpRight, Search } from "lucide-react";
 import {
   comments,
@@ -9,6 +10,7 @@ import {
 import { route } from "@/lib/demo-engine";
 import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";
+import { useDataset, useLive } from "@/components/data-provider";
 export function SectionHead({
   label,
   title,
@@ -35,10 +37,16 @@ export function Field({
   label: string;
   children: React.ReactNode;
 }) {
+  const labelId = useId();
   return (
     <label className="field">
-      <span>{label}</span>
-      {children}
+      <span id={labelId}>{label}</span>
+      {isValidElement(children)
+        ? cloneElement(
+            children as ReactElement<{ "aria-labelledby"?: string }>,
+            { "aria-labelledby": labelId },
+          )
+        : children}
     </label>
   );
 }
@@ -79,6 +87,7 @@ export function Empty({
   );
 }
 export function AccountLink({ id }: { id: string }) {
+  const { handle } = useDataset();
   return (
     <a className="text-link" href={route("accounts", "account", id)}>
       @{handle(id)} <ArrowUpRight size={12} />
@@ -86,6 +95,7 @@ export function AccountLink({ id }: { id: string }) {
   );
 }
 export function EvidenceRows({ ids }: { ids: string[] }) {
+  const { comments, handle } = useDataset();
   return (
     <div className="record-list">
       {ids.map((id) => {
@@ -114,23 +124,27 @@ export function EvidenceRows({ ids }: { ids: string[] }) {
   );
 }
 export function ReviewButton({ comment }: { comment: CommentRecord }) {
+  const live = useLive();
   const { state, update } = useDemo();
   const reviewed = state.reviewed.includes(comment.id);
   return (
     <button
       className={"review-button " + (reviewed ? "reviewed" : "")}
       aria-pressed={reviewed}
+      disabled={live?.busy}
       aria-label={`${reviewed ? "Undo review" : "Mark reviewed"} ${comment.id}`}
       onClick={() =>
-        update(
-          `${reviewed ? "Unreviewed" : "Reviewed"} ${comment.id}`,
-          (s) => ({
-            ...s,
-            reviewed: reviewed
-              ? s.reviewed.filter((id) => id !== comment.id)
-              : [...s.reviewed, comment.id],
-          }),
-        )
+        live
+          ? void live.review(comment.id, !reviewed).catch(() => {})
+          : update(
+              `${reviewed ? "Unreviewed" : "Reviewed"} ${comment.id}`,
+              (s) => ({
+                ...s,
+                reviewed: reviewed
+                  ? s.reviewed.filter((id) => id !== comment.id)
+                  : [...s.reviewed, comment.id],
+              }),
+            )
       }
     >
       {reviewed ? "Reviewed" : "Mark reviewed"}
