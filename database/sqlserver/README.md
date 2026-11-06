@@ -50,3 +50,28 @@ node node_modules/tsx/dist/cli.mjs --test database/sqlserver/artifacts.test.ts
 The converter regenerates schema/views/seed/academic SQL from unchanged MySQL sources. Procedures and integration tests are handwritten. validate.ps1 uses the installed Microsoft ScriptDom TSql170Parser without a database connection. The execution-policy option applies only to that PowerShell process; it does not change machine policy. Parsing is syntax validation only; object binding, transactions and detection results require approved engine execution. See VALIDATION.md for executed results.
 
 No SQL Server credentials, connection strings, backup files or local-machine settings belong in Git.
+
+## Local academic workload and documentation
+
+The project is local-only. No cloud account or deployment is required. The original populated shadowprint_db must not be reseeded.
+
+`generate.py` writes additive T-SQL for a disposable database that already contains the original demo. It adds explicit synthetic provenance, generated accounts, unique harmless activity, 18 rule-scenario comments, benign shared-device controls and one harmless interaction. The emitted SQL rejects the main database and repeat imports. It does not run detection automatically or execute SQL from Python. The original MySQL generator remains unchanged.
+
+From the repository root, generate a file without applying it (the output directory must exist and the file must not already exist):
+
+```powershell
+.venv/Scripts/python.exe database/sqlserver/generate.py --extra 100 --seed 42 --output backend/.test-output/workload.sql
+```
+
+Use the automated integration test to execute an isolated experiment and clean up its owned database:
+
+```powershell
+$env:SHADOWPRINT_RUN_DB_TESTS='1'
+try {
+  .venv/Scripts/python.exe -m pytest backend/tests/test_workload.py -q
+} finally { Remove-Item Env:SHADOWPRINT_RUN_DB_TESTS }
+```
+
+This test verifies deterministic input, original-record preservation, expected generated scores, evidence-producing detection, benign controls, inclusive coordination boundaries and repeat-import rollback. The successful 30-harmless-comment experiment is recorded in [local verification](../../academic/LOCAL-VERIFICATION.md). Larger supported generator inputs are not benchmark results.
+
+The active [SQL Server dictionary](DATA-DICTIONARY.md) is regenerated with `.venv/Scripts/python.exe database/sqlserver/document_schema.py`. The parent directory's dictionary retains the MySQL reference types. See the [academic report](../../academic/REPORT.md), [examiner walkthrough](../../academic/DEMO-WALKTHROUGH.md) and [viva notes](../../academic/VIVA.md).

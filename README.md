@@ -2,6 +2,8 @@
 
 A local academic investigation platform: **Next.js → FastAPI → SQL Server Express**. The existing dashboard and seven screens use SQL-backed records. Cases, notes, evidence associations, status decisions and comment reviews persist in SQL Server with audit history.
 
+Scope: local execution and academic submission only. Cloud deployment, subscriptions and paid services are excluded.
+
 All current account/content records are synthetic with explicit provenance. Signals guide human review; shared devices do not prove identity or contribute risk points.
 
 ## Run locally
@@ -51,8 +53,16 @@ Annotations, evidence comments and findings are distinct counts. Each rule contr
 
 See [execution report](backend/PHASE45-REPORT.md), [project status](PROJECT-STATUS.md), [Windows setup](SETUP-WINDOWS.md) and [SQL Server verification](database/sqlserver/VALIDATION.md).
 
+## Academic material
+
+- [Academic report source](academic/REPORT.md), [examiner demo walkthrough](academic/DEMO-WALKTHROUGH.md) and [viva preparation](academic/VIVA.md).
+- [SQL Server data dictionary](database/sqlserver/DATA-DICTIONARY.md) generated directly from the active DDL.
+- [Latest local verification](academic/LOCAL-VERIFICATION.md), including the T-SQL synthetic workload experiment.
+
+The report is Markdown source ready for institutional formatting; a final DOCX/PDF and slide deck are not yet produced.
+
 ## Limits
 
-Fixed local demo reviewer; no production authentication, public deployment or real-world identity attribution. The frontend loads a bounded SQL snapshot. Scalable imports, concurrency conflict handling, performance hardening, the final academic report, presentation and viva preparation remain future work.
+Fixed local demo reviewer; no production authentication, public deployment or real-world identity attribution. The frontend loads a bounded SQL snapshot. Scalable imports, concurrency conflict handling, performance measurements, final institutional report formatting and the presentation deck remain future work.
 
 Reference artwork, local QA outputs, caches, environments and secrets are excluded from Git. The existing repository-owned visual design is preserved.

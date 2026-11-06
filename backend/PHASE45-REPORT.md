@@ -56,4 +56,4 @@ No production authentication/authorization or cloud deployment is implemented. T
 
 The UI uses a bounded SQL snapshot with local comment pagination; list APIs also expose offset/limit. Large imports, scalable server-side graph paging, workload performance and multi-user edit conflict detection remain future work. Metadata edits currently use last-write-wins semantics. Printing is browser-based; the sample PDF is QA output, not a server-export feature.
 
-FastAPI Cloud was tagged during the work, but no deployment was requested or performed. The final academic report, presentation and viva preparation remain separate pending deliverables.
+The later cloud-deployment exploration was canceled on 6 November at the user's request. No deployment or cloud resource was created. Work continues solely as a local academic project. Academic report source, demo walkthrough and viva notes are now under academic/; final report formatting and presentation remain pending. See academic/LOCAL-VERIFICATION.md for subsequent generator verification.
