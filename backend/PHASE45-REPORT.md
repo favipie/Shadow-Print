@@ -1,3 +1,5 @@
+> Historical source-branch report. Current merged-branch verification is recorded in [FINAL-INTEGRATION.md](../FINAL-INTEGRATION.md).
+
 # Phase 4–5 execution report — 6 November 2026
 
 ## Delivered

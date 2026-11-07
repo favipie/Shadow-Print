@@ -1,12 +1,7 @@
 "use client";
 import { cloneElement, isValidElement, useId, type ReactElement } from "react";
 import { ArrowUpRight, Search } from "lucide-react";
-import {
-  comments,
-  handle,
-  stamp,
-  type CommentRecord,
-} from "@/lib/investigation-data";
+import { stamp, type CommentRecord } from "@/lib/investigation-data";
 import { route } from "@/lib/demo-engine";
 import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";

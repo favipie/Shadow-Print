@@ -1,73 +1,50 @@
 # SHADOWPRINT FastAPI backend
 
-Local path: Next.js (127.0.0.1:3000) → FastAPI (127.0.0.1:8000) → SQL Server Express using Windows Authentication.
+**Next.js → server-side `/api/backend/*` proxy → FastAPI → verified SQL Server schema.** Follow [Windows setup](../SETUP-WINDOWS.md) for the root `.venv`, pinned dependencies and generated server configuration. `backend/main.py` and `app/main.py` both expose the canonical application factory in `app/api.py`. There are no startup migrations.
 
-The populated `shadowprint_db` and the 22-table schema are authoritative. Application startup performs no migrations, table creation or seeding. Do not rerun the initial migration. Original source records and the MySQL reference remain intact.
+## Authentication and compatibility
 
-## Python setup
+Every `/api/v1/*` and `/api/*` operation requires the same configured bearer key. Missing configuration fails with 503; missing/invalid credentials fail with 401. Legacy write operations additionally retain `X-Shadowprint-Client: local-workspace` and local host/origin checks. This header alone cannot bypass the bearer boundary. The proxy injects both required credentials/headers server-side and rejects cross-site/foreign-host requests. Browser code has no API key.
 
-Python 3.12.13 was installed using uv into the ignored project-local .python directory, with a root .venv. Dependencies are pinned in requirements.txt; requirements.in records direct version constraints.
+`SHADOWPRINT_DATABASE_URL` and `SHADOWPRINT_API_KEY` live in `backend/.env`; Next uses the same key plus `SHADOWPRINT_API_URL` in root `.env.local`. The backend reviewer is `SHADOWPRINT_INVESTIGATOR_ID`, never a browser-supplied identity. Both APIs share one configured engine and reviewer. This is local single-investigator access, not user roles or public production authentication.
 
-From the repository root, for a fresh local environment:
+## Canonical `/api/v1` contracts
 
-```powershell
-$env:UV_PYTHON_INSTALL_DIR = Join-Path (Get-Location) '.python'
-uv python install 3.12
-uv venv --python 3.12 .venv
-uv pip sync --python .venv/Scripts/python.exe backend/requirements.txt
-Copy-Item backend/.env.example backend/.env
-```
+Collections use `{items,total,limit,offset}` and snake_case fields. The browser calls `/api/backend/<path>`; Next forwards to `/api/v1/<path>`.
 
-Review the local environment file to match your instance. No SQL username/password is used. The ODBC connection encrypts traffic; certificate trust is explicit for the local development instance. Use a validated server certificate and disable trust bypass in a different deployment.
+| Route | Behavior |
+| --- | --- |
+| `GET /accounts` | Paginated ID/handle search and provenance filter |
+| `GET /accounts/{id}` | Original account and current SQL score |
+| `GET /accounts/{id}/logins` | Device observations |
+| `GET /accounts/{id}/related` | Accounts sharing observed devices |
+| `GET /accounts/{id}/findings` | Persisted findings across runs |
+| `GET /comments` | Text/ID/handle, author/target, category, provenance, annotation method, reviewed and UTC date filters |
+| `GET /comments/{id}` | Original comment, annotations, evidence IDs and latest review |
+| `POST /comments/{id}/reviews` | Strict boolean `reviewed`, nonblank `reason`, transactional audit |
+| `GET /overview` | Filter-consistent totals and daily chart; open cases span all dates |
+| `GET /network` | Device relationships with original evidence IDs |
+| `GET /coordination`, `/coordination/{anchor}/comments` | SQL windows and original supporting comments |
+| `GET /evidence/{id}` | Typed original record |
+| `GET`, `POST /detection-runs` | List or create uniquely identified persisted runs |
+| `GET /detection-runs/{id}/findings` | Paginated findings |
+| `GET /findings/{id}`, `/findings/{id}/evidence` | Finding and original evidence |
+| `GET`, `POST /cases` | Search/filter or create investigations |
+| `GET`, `PUT /cases/{id}` | Read or replace case fields and associations with stale-update protection |
+| `GET`, `POST /cases/{id}/notes` | Read or append notes |
+| `GET /cases/{id}/report` | Explicit case scope and paginated evidence timeline |
+| `GET /rules`, `/provenance`, `/audit`, `/settings` | Rule metadata, source context, audit history and connection status |
 
-Optional activation (only this PowerShell session's execution policy changes):
+`/health/live` and `/health/ready` sit outside the prefix. Readiness checks the schema, procedure and configured investigator. Missing configuration/database returns 503; there is no silent fixture fallback. SQL/driver exceptions do not expose credentials or query details.
 
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-. ./.venv/Scripts/Activate.ps1
-```
+Case writes accept `title`, `description`, `status`, `decision`, `account_ids`, `evidence_ids`, `finding_ids`. PUT additionally requires the last-read `updated_at` as `expected_updated_at`; a concurrent edit or note produces 409. Closing/resolving requires a decision. Unknown/duplicate references are rejected. Notes use `{body}`. Detection uses a new `{id}` and rejects reused IDs.
 
-Activation is unnecessary when invoking .venv/Scripts/python.exe directly.
+Reports are JSON contracts rendered by Next.js. The UI assembles all evidence/note pages before printing and all evidence pages before CSV export. Supplied annotations are not model predictions; shared devices contribute zero score. SQL rule metadata is immutable through this API.
 
-## Read-only connectivity verification
 
-```powershell
-Push-Location backend
-../.venv/Scripts/python.exe -m app.db
-Pop-Location
-```
+## Existing `/api` workspace contracts
 
-This prints DB_NAME(), engine version, user table names, seeded counts and current SQL view scores. It makes no writes.
-
-## Start the application
-
-Terminal 1, from repository root:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1 -Service Api
-```
-
-Terminal 2:
-
-```powershell
-pnpm install --frozen-lockfile
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1 -Service Web
-```
-
-Open [SHADOWPRINT](http://127.0.0.1:3000), [Swagger](http://127.0.0.1:8000/docs), or [health](http://127.0.0.1:8000/api/health). Stop each process with Ctrl+C.
-
-Equivalent explicit commands:
-
-```powershell
-# Run from backend/
-../.venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-# Run from repository root in another terminal
-node node_modules/next/dist/bin/next dev --webpack --hostname 127.0.0.1 --port 3000
-```
-
-NEXT_PUBLIC_API_URL optionally overrides the browser API URL; rebuild/restart Next.js after changing it. It contains no credentials. CORS permits only the configured localhost origins. Use port 3000 unless you explicitly update SHADOWPRINT_ORIGINS.
-
-## API endpoints
+The existing dashboard at `/?mode=workspace` retains its camelCase snapshot API through `/api/backend/legacy/api/*`. The mounted adapter lives under `app/legacy/`; it cannot shadow canonical routes. The root Swagger describes the canonical routes; use the route table below for compatibility contracts.
 
 | Method | Path | Behavior |
 |---|---|---|
@@ -91,49 +68,11 @@ NEXT_PUBLIC_API_URL optionally overrides the browser API URL; rebuild/restart Ne
 | GET | /api/reports/{id} | SQL report; format=json, csv or html |
 | GET | /api/settings | Health, provenance, read-only rule metadata |
 
-Write requests require the X-Shadowprint-Client: local-workspace header. This is a local cross-origin request guard, **not authentication**. Swagger write examples require supplying that header through a client; the frontend supplies it automatically. The fixed reviewer comes from server configuration, never browser input.
 
-## Transactions and authority
+## Transactions and reports
 
-SQLAlchemy Core parameterized SQL uses the existing schema, without a conflicting ORM model. Reads use a short SERIALIZABLE snapshot transaction. Detection, reviews and status calls use a DBAPI autocommit connection because the verified stored procedures own their transactions and reject nested caller transactions. See [SQLAlchemy's SQL Server documentation](https://docs.sqlalchemy.org/en/20/dialects/mssql.html).
+Both repositories use bound SQL parameters and the verified tables/views. Canonical case create/update/associations/audit and notes are atomic. PUT requires `expected_updated_at`, and stale edits return 409. Legacy metadata and status remain separate audited requests; status/review/detection use the verified procedures with their own transactions. A failed second request is surfaced for refresh/retry rather than silently reported saved. Reports retain canonical paginated JSON plus compatibility JSON, formula-safe CSV and escaped printable HTML. There is no server PDF endpoint.
 
-Case creation, metadata/evidence updates and notes use application transactions with audit entries. Editing details and changing status are separate audited operations because the existing procedure owns its transaction. A partial failure is surfaced explicitly; refresh before retrying. Records are never silently treated as saved after a failed request. Concurrent reviewers currently use last-write-wins metadata; versioned edit conflicts are future work.
+## Verification
 
-Settings are read-only: SQL v1 thresholds remain authoritative. Scores count each rule once per account even when multiple windows produce findings. Findings show the latest saved run; repeat detection creates historical runs rather than replacing the original 11 findings.
-
-All labels retain provenance. Annotation counts are not finding counts. Device-only links carry no risk score. Reports escape HTML and neutralize spreadsheet formulas. HTML reports support browser print/Save as PDF; there is no separate server PDF endpoint.
-
-## Tests and safety
-
-From repository root:
-
-```powershell
-# Pure backend validation/report/security tests; integration tests skip unless explicitly enabled
-.venv/Scripts/python.exe -m pytest backend/tests -q
-
-# Creates a uniquely named disposable database, verifies persistence/procedures, then removes only that database
-$env:SHADOWPRINT_RUN_DB_TESTS='1'
-.venv/Scripts/python.exe -m pytest backend/tests -q
-Remove-Item Env:SHADOWPRINT_RUN_DB_TESTS
-
-# Existing tests plus API provider tests and original SQL artifacts
-node node_modules/tsx/dist/cli.mjs --test tests/*.test.ts tests/*.test.tsx database/tests/artifacts.test.ts database/sqlserver/artifacts.test.ts
-
-# Browser workflow: isolated database, FastAPI 18000, Next.js 13000, installed Microsoft Edge
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-e2e.ps1
-
-# Production frontend validation
-node node_modules/next/dist/bin/next build --webpack
-```
-
-Disposable databases must match shadowprint_test_ followed by 32 hexadecimal characters and have a local ownership marker before cleanup. Test setup uses the existing schema/seed only in that new database. No test resets, migrates or reseeds shadowprint_db. Browser tests refuse a non-test API target. Tests need CREATE/DROP DATABASE permission; normal application use does not.
-
-The original Phase 2 provider/fixtures remain as regression-test support. The real home page uses SqlProvider exclusively and has no offline fixture fallback.
-
-## Scope and limitations
-
-This is a local academic application. It has no production login, roles, external identity attribution or public deployment. Bind the API to loopback. Windows SQL permissions are inherited from the process identity; run with a dedicated least-privilege Windows principal when preparing another environment. Required rights: SELECT on the existing application tables/views; EXECUTE on run_detection/review_comment/change_case_status; INSERT/UPDATE on investigations; INSERT/DELETE on investigation_accounts and investigation_evidence; INSERT on case_notes and audit_history. No runtime DDL or source comment/account write permissions are required. Creating users/roles is deliberately outside automatic startup.
-
-The frontend loads a bounded SQL workspace snapshot and paginates the comment UI locally; list APIs also expose offset/limit. Snapshot size is capped and errors explicitly rather than silently truncating records. Large dataset imports, scalable server-side graph paging and benchmarks remain future work. Searches run in memory on the already-loaded small dataset, so no network debounce is needed. No real/public dataset has been imported.
-
-See PHASE45-REPORT.md for actual executed checks, environment issues and remaining work.
+Run `.venv/Scripts/python.exe -m pytest backend/tests -q` from the repository root. Without `SHADOWPRINT_RUN_DB_TESTS=1`, engine tests skip explicitly. With it, all modifying suites use owned disposable databases; see [database setup](../DATABASE-SETUP.md). Never point tests at `shadowprint_db`. Bounded current execution results are in [FINAL-INTEGRATION.md](../FINAL-INTEGRATION.md). Earlier `VERIFICATION.md` and `PHASE45-REPORT.md` are historical branch reports.

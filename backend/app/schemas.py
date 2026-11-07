@@ -1,179 +1,121 @@
-from typing import Literal, Any
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
+from datetime import UTC, datetime
+from typing import Annotated, Any, Literal
 
-Status = Literal["Open", "Under review", "Needs more evidence", "Resolved", "Closed"]
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    StringConstraints,
+    model_validator,
+)
+
+Identifier = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"
+    ),
+]
+NonBlank = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+CaseStatus = Literal["Open", "Under review", "Needs more evidence", "Resolved", "Closed"]
 
 
 class Input(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
-class CaseInput(Input):
-    title: str = Field(min_length=1, max_length=100)
-    description: str = Field(min_length=1, max_length=1500)
-    accountIds: list[str] = Field(default_factory=list, max_length=500)
-    commentIds: list[str] = Field(default_factory=list, max_length=500)
+class Page(Input):
+    limit: int = Field(default=50, ge=1, le=100)
+    offset: int = Field(default=0, ge=0, le=100_000)
+
+
+class CommentFilter(Page):
+    q: str = Field(default="", max_length=200)
+    account_id: Identifier | None = None
+    target_id: Identifier | None = None
+    provenance_id: Identifier | None = None
+    category: str | None = Field(default=None, max_length=64)
+    label_method: (
+        Literal["Authored label", "Rule example", "Public dataset", "Human review"] | None
+    ) = None
+    reviewed: bool | None = None
+    since: AwareDatetime | None = None
+    until: AwareDatetime | None = None
 
     @model_validator(mode="after")
-    def associations(self):
-        if not self.accountIds and not self.commentIds:
-            raise ValueError("Associate at least one account or evidence comment.")
-        if any(not v or len(v) > 64 for v in self.accountIds + self.commentIds):
-            raise ValueError("Invalid record identifier.")
-        self.accountIds = list(dict.fromkeys(self.accountIds))
-        self.commentIds = list(dict.fromkeys(self.commentIds))
+    def date_order(self):
+        if self.since and self.until and self.since > self.until:
+            raise ValueError("since must be before or equal to until")
         return self
 
 
-class CaseCreate(CaseInput):
-    status: Status = "Open"
-    decision: str = Field(default="", max_length=1500)
+class AccountFilter(Page):
+    q: str = Field(default="", max_length=200)
+    provenance_id: Identifier | None = None
+
+
+class CaseFilter(Page):
+    q: str = Field(default="", max_length=200)
+    status: CaseStatus | None = None
+
+
+class CaseWrite(Input):
+    title: Annotated[NonBlank, Field(max_length=255)]
+    description: str = Field(default="", max_length=10_000)
+    status: CaseStatus = "Open"
+    decision: str = Field(default="", max_length=10_000)
+    account_ids: list[Identifier] = Field(default_factory=list, max_length=100)
+    evidence_ids: list[Identifier] = Field(default_factory=list, max_length=200)
+    finding_ids: list[Identifier] = Field(default_factory=list, max_length=100)
 
     @model_validator(mode="after")
-    def decision_required(self):
-        if self.status in ("Closed", "Resolved") and not self.decision:
-            raise ValueError("Record a decision before resolving or closing the case.")
+    def consistent(self):
+        if self.status in ("Resolved", "Closed") and not self.decision:
+            raise ValueError("Resolved and closed cases require a decision")
+        for field in ("account_ids", "evidence_ids", "finding_ids"):
+            ids = getattr(self, field)
+            if len(ids) != len(set(ids)):
+                raise ValueError(f"Duplicate values in {field}")
         return self
 
 
-class StatusInput(Input):
-    status: Status
-    decision: str = Field(default="", max_length=1500)
-
-    @model_validator(mode="after")
-    def decision_required(self):
-        if self.status in ("Closed", "Resolved") and not self.decision:
-            raise ValueError("Record a decision before resolving or closing the case.")
-        return self
+class CaseUpdate(CaseWrite):
+    expected_updated_at: AwareDatetime
 
 
-class NoteInput(Input):
-    text: str = Field(min_length=1, max_length=2000)
+class NoteWrite(Input):
+    body: Annotated[NonBlank, Field(max_length=10_000)]
 
 
-class ReviewInput(Input):
+class ReviewWrite(Input):
     reviewed: StrictBool
-    reason: str = Field(min_length=1, max_length=2000)
+    reason: Annotated[NonBlank, Field(max_length=5000)]
 
 
-class Profile(BaseModel):
-    id: str
-    handle: str
-    created: str
-    bio: str
-    devices: list[str]
-    provenanceId: str
-    provenanceKind: str
-    score: int
+class DetectionWrite(Input):
+    id: Identifier
 
 
-class Annotation(BaseModel):
-    category: str
-    method: str
-    provenanceId: str
-
-
-class Comment(BaseModel):
-    id: str
-    accountId: str
-    targetId: str
-    text: str
-    at: str
-    category: str
-    source: str
-    eventId: str | None = None
-    annotations: list[Annotation]
-    provenanceId: str
-    provenanceKind: str
-    reviewed: bool
-
-
-class Note(BaseModel):
-    text: str
-    at: str
-
-
-class Case(BaseModel):
-    id: str
-    title: str
-    description: str
-    status: Status
-    decision: str
-    updatedAt: str
-    accountIds: list[str]
-    commentIds: list[str]
-    notes: list[Note]
-
-
-class Finding(BaseModel):
-    id: str
-    runId: str
-    accountId: str
-    rule: str
-    reason: str
-    weight: int
-    anchorId: str
-    commentIds: list[str]
-
-
-class Device(BaseModel):
-    id: str
-    name: str
-    context: str
-
-
-class Login(BaseModel):
-    id: str
-    accountId: str
-    deviceId: str
-    at: str
-
-
-class Connection(BaseModel):
-    id: str
-    source: str
-    target: str
-    kind: Literal["Device usage", "Coordinated posting"]
-    evidence: list[str]
-    at: str
-    reason: str
-
-
-class Cluster(BaseModel):
-    id: str
-    name: str
-    members: list[str]
-    commentIds: list[str]
-    description: str
-    kind: str
-
-
-class Workspace(BaseModel):
-    profiles: list[Profile]
-    comments: list[Comment]
-    devices: list[Device]
-    logins: list[Login]
-    connections: list[Connection]
-    clusters: list[Cluster]
-    findings: list[Finding]
-    state: dict[str, Any]
-    events: list[dict[str, Any]]
-    activity: list[dict[str, Any]]
-    accounts: list[dict[str, Any]]
-    settings: dict[str, Any]
-    dashboard: dict[str, Any]
-
-
-class Page[T](BaseModel):
-    items: list[T]
+class Collection(BaseModel):
+    items: list[dict[str, Any]]
     total: int
-    offset: int
     limit: int
+    offset: int
 
 
-class Health(BaseModel):
-    status: str
-    database: str
-    server: str
-    version: str
-    tables: int
+def utc_naive(value: datetime) -> datetime:
+    return value.astimezone(UTC).replace(tzinfo=None)
+
+
+def wire(value: Any) -> Any:
+    """Serialize database timestamps explicitly as UTC, including nested records."""
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=UTC)
+        return value.astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    if isinstance(value, dict):
+        return {key: wire(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [wire(item) for item in value]
+    return value

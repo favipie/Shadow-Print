@@ -4,8 +4,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
-from app.config import Settings
-from app.db import create_db
+from app.legacy.config import Settings
+from app.legacy.db import create_db
 from testing import create_test_database, drop_test_database
 
 path = Path(__file__).resolve().parents[2] / "database/sqlserver/generate.py"

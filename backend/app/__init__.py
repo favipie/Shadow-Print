@@ -1,1 +1,1 @@
-"""SHADOWPRINT local SQL Server API. No automatic schema creation."""
+"""SHADOWPRINT canonical API and authenticated workspace compatibility adapters."""

@@ -1,0 +1,28 @@
+name: Local application checks
+permissions:
+  contents: read
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '12.16.1'
+      - uses: astral-sh/setup-uv@v6
+      - run: sudo apt-get update && sudo apt-get install -y unixodbc
+      - run: uv venv --python 3.12 .venv
+      - run: uv pip sync --python .venv/bin/python backend/requirements.txt
+      - run: pnpm install --frozen-lockfile
+      - run: .venv/bin/python -m pytest backend/tests -q
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+        timeout-minutes: 5
+      - run: pnpm test && pnpm typecheck && pnpm lint && pnpm build
+        timeout-minutes: 10
+      # Windows-auth SQL and browser writes require the owned local test workflow.
+      # They skip here; this job does not claim live SQL or E2E coverage.

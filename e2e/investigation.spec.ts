@@ -1,232 +1,228 @@
 import { test, expect } from "@playwright/test";
-import fs from "node:fs/promises";
-
-const api = "http://127.0.0.1:18000";
-test.beforeEach(async ({ page, request }) => {
-  const health = await request.get(api + "/api/health");
-  expect(health.ok()).toBeTruthy();
-  const db = (await health.json()).database;
-  expect(db).toMatch(/^shadowprint_test_[0-9a-f]{32}$/);
-  // Fail closed if the UI accidentally points at a different API/database.
-  await page.route("**/api/**", (route) =>
-    new URL(route.request().url()).origin === api
-      ? route.continue()
-      : route.abort(),
+test.beforeEach(async ({ request }) => {
+  const response = await request.get("/api/backend/settings");
+  expect(response.ok()).toBeTruthy();
+  expect((await response.json()).database_name).toMatch(
+    /^shadowprint_test_[0-9a-f]{32}$/,
   );
-  const response = page.waitForResponse(api + "/api/workspace");
-  await page.goto("/");
-  expect((await (await response).json()).settings.database).toBe(db);
-  await expect(
-    page.getByRole("heading", { name: "See the pattern." }),
-  ).toBeVisible();
-  await fs.mkdir("qa/phase45", { recursive: true });
 });
-
-test("complete investigation persists across reload and exports SQL report", async ({
+test("SQL Server investigation persists across refresh and generates a complete report", async ({
   page,
   request,
-}) => {
+}, testInfo) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.screenshot({
-    path: "qa/phase45/dashboard-desktop.png",
-    fullPage: true,
+  const leaked: string[] = [];
+  page.on("request", (r) => {
+    if (r.headers().authorization || r.url().includes("8001"))
+      leaked.push(r.url());
   });
-  await page.getByRole("button", { name: "Examine priority signal" }).click();
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await page.keyboard.press("Escape");
-  await page.getByRole("link", { name: /Threat monitor/i }).click();
+  await page.goto("/");
+  await expect(page.getByLabel("Overview metrics")).toContainText("28");
+  await page.screenshot({
+    path: testInfo.outputPath("overview.png"),
+    fullPage: true,
+    animations: "disabled",
+  });
+  await page.getByRole("link", { name: "Threat Monitor", exact: true }).click();
   await page.getByLabel("Search comment or account").fill("C-352");
-  await page.getByRole("link", { name: "C-352 · Inspect" }).click();
-  await page.getByRole("link", { name: "Investigate account" }).click();
+  await page.getByRole("link", { name: "Open comment", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Original comment C-352" }),
+  ).toBeVisible();
+  await page
+    .getByRole("link", { name: "Investigate account", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "@null_signal" }),
+  ).toBeVisible();
   await expect(page.getByText("50 / 100", { exact: true })).toBeVisible();
-  await page.getByText("THREAT-01", { exact: true }).click();
+  await page
+    .getByRole("button", { name: /THREAT-01/ })
+    .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Inspect evidence E-C-352" })
+    .first()
+    .click();
   await expect(
-    page
-      .getByText(
-        "[Fictional threat-language example; deliberately redacted in demo]",
-        { exact: true },
-      )
-      .first(),
+    page.getByText("comments", { exact: true }).first(),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Open network" }).click();
+  await page.getByRole("link", { name: "Open network", exact: true }).click();
   await expect(
-    page.getByLabel("Account and device relationship graph"),
+    page.getByRole("heading", { name: "Accessible connection evidence" }),
   ).toBeVisible();
-  await page.getByLabel("Connection type").selectOption("Coordinated posting");
-  await page.locator(".connection-row").first().click();
+  await page.getByRole("button", { name: "Inspect evidence E-L-1" }).click();
+  await expect(page.getByText("login_events", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "A-001", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Connection evidence" }),
+    page.getByRole("heading", { name: "Devices & connected accounts" }),
   ).toBeVisible();
   await expect(
-    page.locator(".network-detail").getByText("C-410", { exact: true }),
+    page.getByRole("link", { name: "@static_07", exact: true }).last(),
   ).toBeVisible();
-  await page.screenshot({
-    path: "qa/phase45/network-desktop.png",
-    fullPage: true,
-  });
-
   await page.goto("/#threats?comment=C-352");
   await page.getByRole("link", { name: "Add to case", exact: true }).click();
   await page.getByRole("button", { name: "Create case with evidence" }).click();
-  await page
-    .getByLabel("Case title", { exact: true })
-    .fill("Browser investigation");
+  const title = `Browser investigation ${Date.now()}`;
+  await page.getByLabel("Case title", { exact: true }).fill(title);
   await page
     .getByLabel("Description", { exact: true })
-    .fill("Original SQL evidence reviewed end to end.");
+    .fill("Original evidence and contextual review, verified end to end.");
   await page.getByRole("button", { name: "Save case", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page).toHaveURL(/#cases\?case=SP-/);
-  const caseId = new URLSearchParams(page.url().split("?")[1]).get("case")!;
+  await expect(
+    page.getByRole("heading", { name: title, exact: true }),
+  ).toBeVisible();
+  const caseId = new URLSearchParams(page.url().split("?").pop()).get("case")!;
   await page
     .getByLabel("New investigator note")
-    .fill("Context checked; this is a synthetic supplied threat label.");
+    .fill("Browser persistence proof: reviewed original context.");
   await page.getByRole("button", { name: "Add note", exact: true }).click();
   await expect(
-    page.getByText(
-      "Context checked; this is a synthetic supplied threat label.",
-      { exact: true },
-    ),
+    page.getByText("Browser persistence proof: reviewed original context.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Edit case" }).click();
+  await page
+    .getByRole("combobox", { name: "Case status", exact: true })
+    .selectOption("Under review");
+  await page.getByRole("button", { name: "Save case", exact: true }).click();
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await expect(
+    page.getByText(`${caseId} / Under review`, { exact: true }),
+  ).toBeVisible();
+  await page.goto("/#threats?comment=C-352");
+  const previous = await request
+    .get("/api/backend/comments/C-352")
+    .then((r) => r.json());
+  if (previous.reviewed)
+    await page.getByRole("button", { name: "Undo review C-352" }).click();
+  await page.getByRole("button", { name: "Mark reviewed C-352" }).click();
+  await expect(
+    page.getByRole("button", { name: "Undo review C-352" }),
   ).toBeVisible();
   await page.reload();
   await expect(
-    page.getByText(
-      "Context checked; this is a synthetic supplied threat label.",
-      { exact: true },
-    ),
+    page.getByRole("button", { name: "Undo review C-352" }),
   ).toBeVisible();
-
-  await page.goto("/#threats?comment=C-352");
+  await page.goto(`/#cases?case=${caseId}`);
+  await expect(
+    page.getByRole("heading", { name: title, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Browser persistence proof: reviewed original context.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Open investigation report" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Investigation report" }),
+  ).toBeVisible();
   await page
-    .locator(".selected-comment")
-    .getByRole("button", { name: "Mark reviewed C-352" })
+    .getByRole("button", { name: "Prepare complete printable report" })
     .click();
   await expect(
-    page
-      .locator(".selected-comment")
-      .getByRole("button", { name: "Undo review C-352" }),
-  ).toBeVisible();
-  await page.reload();
-  await expect(
-    page
-      .locator(".selected-comment")
-      .getByRole("button", { name: "Undo review C-352" }),
-  ).toBeVisible();
-  expect(
-    (await (await request.get(api + "/api/comments/C-352")).json()).reviewed,
-  ).toBe(true);
-
-  await page.goto("/#reports?case=" + caseId);
-  await expect(
-    page.getByRole("heading", { name: "Browser investigation", exact: true }),
+    page.getByRole("button", { name: "Print / Save PDF" }),
   ).toBeVisible();
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download report CSV" }).click();
-  const exported = await download;
-  const file = await exported.path();
-  expect(await fs.readFile(file!, "utf8")).toContain("Context checked");
-  expect(await fs.readFile(file!, "utf8")).toContain("C-352");
-  const popup = page.waitForEvent("popup");
-  await page.getByRole("button", { name: "Print report" }).click();
-  const report = await popup;
-  await report.waitForLoadState();
+  await page.getByRole("button", { name: "Export evidence CSV" }).click();
+  expect((await download).suggestedFilename()).toBe(`${caseId}-evidence.csv`);
+  await page.emulateMedia({ media: "print" });
   await expect(
-    report.getByRole("heading", { name: "Browser investigation" }),
+    page
+      .getByText("Browser persistence proof: reviewed original context.", {
+        exact: true,
+      })
+      .last(),
   ).toBeVisible();
-  await report.emulateMedia({ media: "print" });
-  await report.screenshot({
-    path: "qa/phase45/report-print.png",
-    fullPage: true,
-  });
-  await report.pdf({
-    path: "qa/phase45/investigation-report.pdf",
+  await page.pdf({
+    path: testInfo.outputPath("investigation.pdf"),
     format: "A4",
-    printBackground: true,
   });
-  await report.close();
+  await page.emulateMedia({ media: "screen" });
+  await expect(page.locator(".main-shell")).toHaveCSS("margin-left", "238px");
   await page.screenshot({
-    path: "qa/phase45/report-desktop.png",
+    path: testInfo.outputPath("report.png"),
     fullPage: true,
+    animations: "disabled",
   });
   expect(errors).toEqual([]);
-  expect((await (await request.get(api + "/api/findings")).json()).length).toBe(
-    11,
-  );
+  expect(leaked).toEqual([]);
+  expect(
+    (
+      await request
+        .get(`/api/backend/cases/${caseId}/notes`)
+        .then((r) => r.json())
+    ).items.some((n: { body: string }) => n.body.includes("persistence proof")),
+  ).toBeTruthy();
 });
-
-test("mobile navigation, filters, pagination, empty results and settings", async ({
+test("pagination, coordination, settings, mobile navigation and API errors", async ({
   page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({
-    path: "qa/phase45/dashboard-mobile.png",
-    fullPage: true,
-  });
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
-  await page.getByRole("button", { name: "Open navigation" }).click();
-  await page.getByRole("link", { name: /Threat monitor/i }).click();
-  await expect(
-    page.getByRole("heading", { name: "Comment review queue" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Next comments" }).click();
-  await expect(page.getByText("Page 2 of 2", { exact: true })).toBeVisible();
-  await page.getByLabel("Search comment or account").fill("no-such-comment");
-  await expect(
-    page.getByText("No matching records", { exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Reset filters" }).click();
+  request,
+}, testInfo) => {
+  await page.goto("/#threats");
+  await expect(page.getByLabel("comments pagination")).toContainText("of 28");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.getByLabel("comments pagination")).toContainText(
+    "21\u201328",
+  );
   await page
-    .getByLabel("Category", { exact: true })
-    .selectOption("Threat-related language");
+    .getByRole("combobox", { name: "Category", exact: true })
+    .selectOption("Spam");
+  await expect(page.getByLabel("comments pagination")).toContainText("of 14");
+  await page
+    .getByRole("link", { name: "Coordination Analysis", exact: true })
+    .click();
+  await page.getByRole("button", { name: /C-410/ }).click();
+  await expect(page.getByText("C-412", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(
-    page.getByText("1 matching records", { exact: true }),
+    page.getByText("Microsoft SQL Server", { exact: true }),
   ).toBeVisible();
-  await page.screenshot({
-    path: "qa/phase45/threats-mobile.png",
-    fullPage: true,
-  });
+  await expect(
+    page.getByRole("heading", { name: "Audit history" }),
+  ).toBeVisible();
+  expect(
+    (
+      await request.post("/api/backend/cases", {
+        headers: { origin: "https://evil.example" },
+        data: { title: "Must reject" },
+      })
+    ).status(),
+  ).toBe(403);
+  await page.route("**/api/backend/overview*", (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ detail: "Test backend unavailable" }),
+    }),
+  );
+  await page.goto("/");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Test backend unavailable" }),
+  ).toContainText("Test backend unavailable");
+  await page.unroute("**/api/backend/overview*");
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByLabel("Overview metrics")).toContainText("28");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .getByRole("button", { name: "Open navigation", exact: true })
+    .click();
+  await page
+    .getByRole("link", { name: "Account Investigator", exact: true })
+    .click();
+  await page.getByLabel("Search account or ID").fill("library_one");
+  await page.getByRole("link", { name: /@library_one/ }).click();
+  await expect(page.getByText("0 / 100", { exact: true })).toBeVisible();
   expect(
     await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
+      () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
-  ).toBe(true);
-  await page.goto("/#coordination");
-  await expect(
-    page.getByRole("heading", { name: "Activity groups" }),
-  ).toBeVisible();
-  await page.getByLabel("Scenario type").selectOption("Benign control");
-  await page.getByRole("button", { name: /Public library terminal/ }).click();
-  await expect(page.getByText("NO MATCH", { exact: true })).toBeVisible();
-  await page.goto("/#settings");
-  await expect(
-    page.getByText("AUTHORITATIVE SQL RULES · READ ONLY", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Save thresholds" }),
-  ).toHaveCount(0);
+  ).toBeTruthy();
   await page.screenshot({
-    path: "qa/phase45/settings-mobile.png",
+    path: testInfo.outputPath("mobile-account.png"),
     fullPage: true,
+    animations: "disabled",
   });
-});
-
-test("connection failure is explicit and can be retried", async ({ page }) => {
-  await page.route(api + "/api/workspace", (route) => route.abort());
-  await page.reload();
-  await expect(
-    page.getByRole("alert").filter({ hasText: "API unavailable" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "See the pattern." }),
-  ).toHaveCount(0);
-  await page.unroute(api + "/api/workspace");
-  await page.getByRole("button", { name: "Retry connection" }).click();
-  await expect(
-    page.getByRole("heading", { name: "See the pattern." }),
-  ).toBeVisible();
 });

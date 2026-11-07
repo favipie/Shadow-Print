@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useDataset, useLive } from "@/components/data-provider";
-import { comments, handle, stamp } from "@/lib/investigation-data";
+import { stamp } from "@/lib/investigation-data";
 import { csvText, download, route } from "@/lib/demo-engine";
 import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";

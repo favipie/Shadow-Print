@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useDataset, useLive } from "@/components/data-provider";
 import { API_BASE, groupedFindings } from "@/lib/api";
 import { Printer, Download } from "lucide-react";
-import { comments, handle, limitation, stamp } from "@/lib/investigation-data";
+import { limitation, stamp } from "@/lib/investigation-data";
 import {
   analyzeAccount,
   csvText,
@@ -13,7 +13,7 @@ import {
 } from "@/lib/demo-engine";
 import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";
-import { AccountLink, Empty, EvidenceRows, Field, SectionHead } from "./shared";
+import { AccountLink, Empty, EvidenceRows, Field } from "./shared";
 export default function ReportsScreen({ params }: { params: URLSearchParams }) {
   const data = useDataset();
   const { comments, handle } = data;

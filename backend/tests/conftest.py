@@ -4,9 +4,9 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from app.main import create_app
-from app.config import Settings
-from app.db import create_db
+from app.legacy.main import create_app
+from app.legacy.config import Settings
+from app.legacy.db import create_db
 from testing import create_test_database, drop_test_database
 
 HEADERS = {"X-Shadowprint-Client": "local-workspace"}
