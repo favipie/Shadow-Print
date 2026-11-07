@@ -1,43 +1,44 @@
-# Windows setup
+# Windows local setup
 
-Run Next.js → FastAPI → SQL Server Express locally, without Docker. The existing shadowprint_db is populated: do not rerun migration or seed scripts.
-
-Use Node.js 20.9+, pnpm, Python 3.12, ODBC Driver 18 and the running SQL Server instance. [Backend setup](backend/README.md) contains complete environment, connection and test commands.
-
-From the repository root:
+Requirements: Node.js 22+, pnpm, Python 3.12+, uv, Microsoft ODBC Driver 18, SQL Server 2025 Express and Windows Authentication. Run from the repository root. The existing `shadowprint_db` must not be migrated or reseeded.
 
 ```powershell
 pnpm install --frozen-lockfile
+uv venv --python 3.12 .venv
 uv pip sync --python .venv/Scripts/python.exe backend/requirements.txt
-# Terminal 1
+.venv/Scripts/python.exe backend/configure_local.py --server 'favipie\SQLEXPRESS' --database shadowprint_db
+```
+
+Skip virtual-environment creation if `.venv` already exists. The configuration helper creates ignored `backend/.env` and root `.env.local` with a generated shared key, prints no key, refuses existing files and performs no database writes. Existing installations should reconcile these files with the examples without overwriting their own values. `SHADOWPRINT_DATABASE_URL` selects the SQL Server database; the old `NEXT_PUBLIC_API_URL` is no longer used. Never put a key or database URL in a `NEXT_PUBLIC_` variable.
+
+The backend reads `backend/.env` independently of the current working directory. Username/password omission in the SQLAlchemy URL uses Windows Authentication. Local certificate trust is explicit. Test database creation uses `SHADOWPRINT_SERVER` for the local instance.
+
+Start two terminals:
+
+```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1 -Service Api
-# Terminal 2
+# Second terminal:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1 -Service Web
 ```
 
-The Web script supports -NodeExecutable 'C:\path\to\node.exe' when an installed Node executable is absent from PATH. Stop each terminal with Ctrl+C.
+Open http://127.0.0.1:3000. The Web script accepts `-NodeExecutable` with a Node executable path. Stop with Ctrl+C. For production-mode local execution: `pnpm build`, then `pnpm start`, with the backend running. These commands do not deploy.
 
-Open http://127.0.0.1:3000 and http://127.0.0.1:8000/docs. Config lives in ignored backend/.env; copy backend/.env.example and adjust for your local instance.
-
-Read-only connectivity:
-
-```powershell
-Push-Location backend
-../.venv/Scripts/python.exe -m app.db
-Pop-Location
-```
-
-Validation:
+## Checks
 
 ```powershell
 pnpm test
 pnpm typecheck
+pnpm lint
 pnpm build
 .venv/Scripts/python.exe -m pytest backend/tests -q
+# Explicitly enable owned disposable SQL integration databases:
+$env:SHADOWPRINT_RUN_DB_TESTS='1'
+.venv/Scripts/python.exe -m pytest backend/tests -q -o faulthandler_timeout=20
+Remove-Item Env:SHADOWPRINT_RUN_DB_TESTS
+# Requires the production build and installed Edge:
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-e2e.ps1
 ```
 
-Full API/browser modifying tests use disposable databases and require permission to create/remove those databases. They never reset shadowprint_db. See the backend README for explicit integration-test commands.
+E2E starts isolated services on ports 8001/3002 and checks ownership before browser writes. Set `PLAYWRIGHT_CHANNEL=chromium` if using an installed Playwright Chromium instead of Edge. Windows networking must be permitted for TestClient's asyncio socketpair; a restricted environment can hang before reaching SQL Server. Use a process deadline and normal local networking, rather than repeating a hung run. Current bounded commands/results are in [FINAL-INTEGRATION.md](FINAL-INTEGRATION.md).
 
-The pnpm store/cache are project-local and ignored because the development environment's shared store was corrupted. esbuild's native-binary setup is explicitly allowed in pnpm-workspace.yaml.
-
-Never commit .env, passwords, tokens, database files, backups, environments or generated QA files. Use ordinary Git commits and fast-forward-safe synchronization; never force-push.
+Project-local pnpm store/cache, environments, browser artifacts, database files and private settings are ignored. Never commit them. The repository has no required cloud services.

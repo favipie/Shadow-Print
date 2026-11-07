@@ -75,3 +75,9 @@ try {
 This test verifies deterministic input, original-record preservation, expected generated scores, evidence-producing detection, benign controls, inclusive coordination boundaries and repeat-import rollback. The successful 30-harmless-comment experiment is recorded in [local verification](../../academic/LOCAL-VERIFICATION.md). Larger supported generator inputs are not benchmark results.
 
 The active [SQL Server dictionary](DATA-DICTIONARY.md) is regenerated with `.venv/Scripts/python.exe database/sqlserver/document_schema.py`. The parent directory's dictionary retains the MySQL reference types. See the [academic report](../../academic/REPORT.md), [examiner walkthrough](../../academic/DEMO-WALKTHROUGH.md) and [viva notes](../../academic/VIVA.md).
+
+## Integrated backend and test ownership
+
+The active backend uses the verified four-file sequence above. Recovery's duplicate exported detection/seed files were removed from the merge to prevent installing incompatible duplicate definitions. The read-only baseline digest remains historical preservation evidence, not a new seed.
+
+Run modifying verification only through `backend/testing.py` and the owned disposable fixtures. They require a random `shadowprint_test_<32 hex>` name plus an ignored ownership marker and clean up only databases they created. `backend/migrate.py` rejects unowned or nonempty databases. No migration runs at application startup. Current integration results: [FINAL-INTEGRATION.md](../../FINAL-INTEGRATION.md).

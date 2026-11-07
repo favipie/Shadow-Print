@@ -1,13 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useDataset, useLive } from "@/components/data-provider";
-import { clusters, comments, handle, stamp } from "@/lib/investigation-data";
 import { coordinationEvidence, route } from "@/lib/demo-engine";
 import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";
 import { AccountLink, Empty, EvidenceRows, Field, SectionHead } from "./shared";
 export default function CoordinationScreen() {
-  const { clusters, comments, handle } = useDataset();
+  const { clusters, comments } = useDataset();
   const live = useLive();
   const { state } = useDemo();
   const [selected, setSelected] = useState(clusters[0]?.id ?? "");

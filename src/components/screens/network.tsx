@@ -11,15 +11,7 @@ import {
   type Node,
   type Edge,
 } from "@xyflow/react";
-import {
-  profiles,
-  devices,
-  connections,
-  comments,
-  logins,
-  handle,
-  stamp,
-} from "@/lib/investigation-data";
+import { stamp } from "@/lib/investigation-data";
 import { route } from "@/lib/demo-engine";
 import { Button } from "@/components/ui/button";
 import { AccountLink, Empty, EvidenceRows, Field, SectionHead } from "./shared";

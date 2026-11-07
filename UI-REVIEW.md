@@ -1,3 +1,7 @@
+> Historical source-branch report. Current merged-branch verification is recorded in [FINAL-INTEGRATION.md](FINAL-INTEGRATION.md).
+
+> Historical checkpoint. The active application now uses Next.js -> FastAPI -> Microsoft SQL Server. This document preserves earlier work and its then-current limitations. See [current integration verification](INTEGRATION-VERIFICATION.md).
+
 # UI review status — Phase 2
 
 The Phase 1 layout has been retained and its seven planned destinations implemented. The latest user authorization allows Phase 2 completion without additional confirmation. Frontend-only scope remains in effect.

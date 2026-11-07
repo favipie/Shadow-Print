@@ -3,15 +3,7 @@ import { useState } from "react";
 import { useDataset, useLive } from "@/components/data-provider";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X, Plus } from "lucide-react";
-import {
-  profiles,
-  comments,
-  clusters,
-  statuses,
-  handle,
-  stamp,
-  type CaseRecord,
-} from "@/lib/investigation-data";
+import { statuses, stamp, type CaseRecord } from "@/lib/investigation-data";
 import { caseValidation, route } from "@/lib/demo-engine";
 import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";
@@ -178,7 +170,7 @@ function CaseEditor({
   );
 }
 export default function CasesScreen({ params }: { params: URLSearchParams }) {
-  const { profiles, comments, clusters, handle } = useDataset();
+  const { profiles, comments, clusters } = useDataset();
   const live = useLive();
   const { state, update } = useDemo();
   const [search, setSearch] = useState("");

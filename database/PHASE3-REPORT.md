@@ -1,3 +1,5 @@
+> Historical checkpoint. The active application now uses Next.js -> FastAPI -> Microsoft SQL Server. This document preserves earlier work and its then-current limitations. See [current integration verification](../FINAL-INTEGRATION.md).
+
 # Phase 3 delivery report
 
 ## Status

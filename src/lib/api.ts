@@ -2,7 +2,6 @@ import type {
   CaseRecord,
   CommentRecord,
   Connection,
-  Thresholds,
 } from "./investigation-data";
 import type { DemoState, Finding } from "./demo-engine";
 import type { FlagEvent } from "./mock-data";
@@ -86,8 +85,7 @@ export type WorkspaceData = {
   };
 };
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+export const API_BASE = "/api/backend/legacy";
 export async function request<T>(
   path: string,
   method = "GET",

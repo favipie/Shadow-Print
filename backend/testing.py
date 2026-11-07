@@ -4,8 +4,9 @@ import re
 from pathlib import Path
 from uuid import uuid4
 from sqlalchemy import text
-from app.config import Settings
-from app.db import create_db
+from sqlalchemy.engine import URL
+from app.legacy.config import Settings
+from app.legacy.db import create_db
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = Path(__file__).parent / ".test-output"
@@ -15,6 +16,17 @@ def check_name(name):
     if not re.fullmatch(r"shadowprint_test_[0-9a-f]{32}", name):
         raise ValueError("Refusing non-disposable database name")
     return name
+
+
+def database_url(name):
+    check_name(name)
+    marker = REGISTRY / name
+    if not marker.exists() or marker.read_text(encoding="utf-8") != name:
+        raise ValueError("No ownership marker")
+    config = Settings(database=name)
+    return URL.create("mssql+pyodbc", host=config.server, database=name,
+        query={"driver": config.driver, "TrustServerCertificate": "yes", "LongAsMax": "yes"}
+    ).render_as_string(hide_password=False)
 
 
 def create_test_database():
@@ -58,12 +70,15 @@ def drop_test_database(name):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["create", "drop"])
+    parser.add_argument("action", choices=["create", "drop", "url"])
     parser.add_argument("name", nargs="?")
     args = parser.parse_args()
     if args.action == "create":
         print(create_test_database())
     elif args.name:
-        drop_test_database(args.name)
+        if args.action == "url":
+            print(database_url(args.name))
+        else:
+            drop_test_database(args.name)
     else:
         parser.error("drop requires the exact owned disposable database name")

@@ -1,3 +1,5 @@
+> Historical checkpoint. The active application now uses Next.js -> FastAPI -> Microsoft SQL Server. This document preserves earlier work and its then-current limitations. See [current integration verification](../FINAL-INTEGRATION.md).
+
 # SHADOWPRINT Phase 3 — MySQL
 
 This directory adds a relational implementation without changing frontend behavior. FastAPI and browser-to-database integration are not implemented. Never connect a browser directly to MySQL.

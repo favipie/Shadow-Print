@@ -8,7 +8,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { activity } from "@/lib/mock-data";
 import { useDataset } from "./data-provider";
 export function ActivityChart({ days }: { days: number }) {
   const { activity } = useDataset();

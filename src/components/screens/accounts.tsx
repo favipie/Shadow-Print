@@ -3,14 +3,7 @@ import { useState } from "react";
 import { useDataset, useLive } from "@/components/data-provider";
 import { groupedFindings } from "@/lib/api";
 import { Network, ScanLine, ShieldCheck } from "lucide-react";
-import {
-  profiles,
-  comments,
-  devices,
-  logins,
-  handle,
-  stamp,
-} from "@/lib/investigation-data";
+import { stamp } from "@/lib/investigation-data";
 import { analyzeAccount, route, scorePriority } from "@/lib/demo-engine";
 import { useDemo } from "@/components/demo-provider";
 import { Button } from "@/components/ui/button";
@@ -24,7 +17,7 @@ import {
 } from "./shared";
 export default function AccountScreen({ params }: { params: URLSearchParams }) {
   const data = useDataset();
-  const { profiles, comments, devices, logins, handle } = data;
+  const { profiles, comments, devices, logins } = data;
   const live = useLive();
   const { state } = useDemo();
   const [search, setSearch] = useState("");

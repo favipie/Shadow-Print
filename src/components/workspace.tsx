@@ -1,10 +1,10 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useDataset, useLive } from "@/components/data-provider";
 import {
   Activity,
   ArrowDownToLine,
-  ArrowRight,
   ArrowUpRight,
   Bell,
   ChevronDown,
@@ -29,16 +29,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { ActivityChart } from "@/components/activity-chart";
 import { EvidenceDialog, type Detail } from "@/components/evidence-dialog";
-import {
-  accounts,
-  activity,
-  events,
-  sections,
-  type FlagEvent,
-} from "@/lib/mock-data";
+import { sections, type FlagEvent } from "@/lib/mock-data";
 import { ScreenRouter } from "@/components/screen-router";
 import { useDemo } from "@/components/demo-provider";
-import { comments, profiles } from "@/lib/investigation-data";
 import {
   route,
   csvText,
@@ -824,6 +817,7 @@ export function Workspace() {
                 </section>
               </div>
               <footer>
+                <Link href="/">Open paginated SQL workspace</Link>
                 <span>
                   <Fingerprint size={15} /> SHADOWPRINT{" "}
                   <span className="footer-divider">/</span> Evidence before
