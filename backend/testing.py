@@ -29,7 +29,7 @@ def database_url(name):
     ).render_as_string(hide_password=False)
 
 
-def create_test_database():
+def create_test_database(*, empty=False):
     name = "shadowprint_test_" + uuid4().hex
     master = create_db(Settings(database="master"))
     with master.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
@@ -37,6 +37,8 @@ def create_test_database():
     master.dispose()
     REGISTRY.mkdir(exist_ok=True)
     (REGISTRY / name).write_text(name, encoding="utf-8")
+    if empty:
+        return name
     db = create_db(Settings(database=name))
     try:
         with db.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
