@@ -1,0 +1,53 @@
+name: shadowprint-demo
+services:
+  db:
+    image: ${SQL_IMAGE:-mcr.microsoft.com/mssql/server:2025-latest@sha256:245f6b1c8903edae52cb20fa31419cefcde1a49938bb8c3447099011fc871ca3}
+    hostname: shadowprint-db
+    platform: linux/amd64
+    env_file: .private/sql.env
+    environment:
+      ACCEPT_EULA: ${ACCEPT_SQL_EULA:?Review Microsoft SQL Server EULA and explicitly set ACCEPT_SQL_EULA=Y}
+      MSSQL_PID: Express
+    volumes:
+      - sql:/var/opt/mssql
+      - ./.private/mssql.conf:/var/opt/mssql/mssql.conf:ro
+      - ./.private/db.crt:/tls/db.crt:ro
+      - ./.private/db.key:/tls/db.key:ro
+    networks: [data]
+    restart: unless-stopped
+  api:
+    build: {context: .., dockerfile: deploy/api.Dockerfile}
+    env_file: .private/api.env
+    environment:
+      SHADOWPRINT_MEMBERS_FILE: /run/demo/members.json
+    volumes:
+      - ./.private/members.json:/run/demo/members.json:ro
+      - ./.private/ca.crt:/etc/ssl/certs/${CA_HASH:?Supply generated compose.env}.0:ro
+    networks: [data, service]
+    restart: unless-stopped
+  maintenance:
+    profiles: [maintenance]
+    build: {context: .., dockerfile: deploy/api.Dockerfile}
+    env_file: .private/admin.env
+    volumes:
+      - ./.private/members.json:/run/demo/members.json:ro
+      - ./.private/ca.crt:/etc/ssl/certs/${CA_HASH}.0:ro
+    entrypoint: [python, /srv/install.py]
+    networks: [data]
+  https:
+    image: caddy:2-alpine
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?Supply generated compose.env}
+    ports: ["80:80", "443:443"]
+    networks: [service, internet]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - certs:/data
+    restart: unless-stopped
+networks:
+  data: {internal: true}
+  service: {internal: true}
+  internet: {}
+volumes:
+  sql: {}
+  certs: {}

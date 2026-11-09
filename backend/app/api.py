@@ -12,6 +12,7 @@ from sqlalchemy.exc import DBAPIError, IntegrityError, SQLAlchemyError
 from .config import Settings
 from .db import build_engine, check_ready
 from .errors import DomainError
+from .hosted import HostedBoundary, actor_id, load_members
 from .repository import Repository
 from .schemas import (
     AccountFilter,
@@ -46,7 +47,10 @@ def require_key(
 def get_repository(request: Request) -> Repository:
     if request.app.state.engine is None:
         raise DomainError(503, "Database is not configured")
-    return Repository(request.app.state.engine, request.app.state.settings.investigator_id)
+    actor = actor_id.get()
+    if request.app.state.settings.mode == "hosted" and actor is None:
+        raise DomainError(401, "Sign in required")
+    return Repository(request.app.state.engine, actor or request.app.state.settings.investigator_id)
 
 
 Repo = Annotated[Repository, Depends(get_repository)]
@@ -87,15 +91,16 @@ def related_accounts(account_id: Identifier, repo: Repo, page: Paging):
 @router.get("/settings", tags=["Reference"])
 def settings_info(request: Request):
     settings = request.app.state.settings
-    check_ready(request.app.state.engine, settings.investigator_id)
+    investigator = actor_id.get() or settings.investigator_id
+    check_ready(request.app.state.engine, investigator)
     with request.app.state.engine.connect() as conn:
         database_name = conn.scalar(text("SELECT DB_NAME()"))
     return {
         "status": "ready",
         "database": "Microsoft SQL Server",
         "database_name": database_name,
-        "investigator_id": settings.investigator_id,
-        "authentication": "Local shared service key; no multi-user authentication",
+        "investigator_id": investigator,
+        "authentication": "Invited investigator session" if settings.mode == "hosted" else "Local shared service key",
         "rules": "Persisted SQL v1; read-only metadata",
         "timestamps": "UTC",
     }
@@ -218,6 +223,8 @@ def audit(repo: Repo, page: Paging):
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings()
     engine = build_engine(settings)
+    hosted = settings.mode == "hosted"
+    members = load_members(settings.members_file) if hosted else {}
 
     @asynccontextmanager
     async def lifespan(_app):
@@ -228,6 +235,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="SHADOWPRINT API",
         version="0.1.0",
+        openapi_url=None if hosted else "/openapi.json",
         lifespan=lifespan,
         description="Investigation API for the verified SQL Server schema. "
         "A shared service key identifies a configured demo investigator; "
@@ -237,7 +245,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = engine
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
+        allow_origins=[] if hosted else settings.cors_origins,
         allow_methods=["GET", "POST", "PUT"],
         allow_headers=["Authorization", "Content-Type"],
         allow_credentials=False,
@@ -285,6 +293,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if settings.api_key is None:
             raise DomainError(503, "API access is not configured")
         check_ready(engine, settings.investigator_id)
+        if hosted:
+            with engine.connect() as conn:
+                for member in members.values():
+                    if not conn.scalar(text("SELECT id FROM dbo.investigators WHERE id=:id"), {"id": member.actor}):
+                        raise DomainError(503, "Investigator provisioning is incomplete")
         return {"status": "ready", "database": "sqlserver", "schema": "phase3"}
 
     app.include_router(router)
@@ -294,5 +307,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from .legacy.config import Settings as LegacySettings
         from .legacy.main import create_app as create_legacy_app
 
-        app.mount("/", create_legacy_app(engine, LegacySettings(reviewer=settings.investigator_id)))
+        app.mount("/", create_legacy_app(engine, LegacySettings(reviewer=settings.investigator_id,
+            origins=[] if hosted else settings.cors_origins), hosted_host=settings.api_host if hosted else None))
+    if hosted:
+        from starlette.middleware.trustedhost import TrustedHostMiddleware
+        app.add_middleware(HostedBoundary, service_key=settings.api_key.get_secret_value(), members=members)
+        app.add_middleware(TrustedHostMiddleware, allowed_hosts=[settings.api_host])
     return app

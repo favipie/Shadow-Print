@@ -32,3 +32,5 @@ See [current integration results](FINAL-INTEGRATION.md), [backend contracts](bac
 ## Academic material and limits
 
 [Report source](academic/REPORT.md), [demonstration walkthrough](academic/DEMO-WALKTHROUGH.md), [viva preparation](academic/VIVA.md) and [SQL data dictionary](database/sqlserver/DATA-DICTIONARY.md) are retained. Institutional document formatting, presentation slides and large-workload query-plan measurements remain separate work. Historical verification reports describe their original branch, not the combined implementation. No cloud deployment is included.
+
+For the isolated HTTPS sign-in demonstration, recovery rehearsal, hosting costs and conditional Vercel release steps, see [hosted demo setup](deploy/README.md).

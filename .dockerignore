@@ -1,0 +1,17 @@
+**
+!backend/
+!backend/app/
+!backend/app/**
+!backend/main.py
+!backend/requirements.txt
+!deploy/
+!deploy/install.py
+!deploy/serve.py
+!deploy/manifest.json
+!database/
+!database/sqlserver/
+!database/sqlserver/00[1-4]_*.sql
+**/__pycache__/
+**/*.pyc
+**/.env*
+**/.private/

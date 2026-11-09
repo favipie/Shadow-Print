@@ -5,6 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from fastapi import HTTPException
 from .config import Settings
+from ..hosted import actor_id
 
 
 def rows(conn, sql: str, params=None):
@@ -12,8 +13,16 @@ def rows(conn, sql: str, params=None):
 
 
 class Repository:
-    def __init__(self, engine: Engine, config: Settings):
+    def __init__(self, engine: Engine, config: Settings, require_actor=False):
         self.engine, self.config = engine, config
+        self.require_actor = require_actor
+
+    @property
+    def reviewer(self):
+        actor = actor_id.get()
+        if self.require_actor and actor is None:
+            raise HTTPException(401, "Sign in required")
+        return actor or self.config.reviewer
 
     def read(self):
         with self.engine.connect().execution_options(isolation_level="SERIALIZABLE") as conn:
@@ -62,12 +71,12 @@ class Repository:
         }
         # Existing procedures own their transactions and reject caller transactions.
         with self.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-            conn.execute(text(calls[name]), {**params, "actor": self.config.reviewer})
+            conn.execute(text(calls[name]), {**params, "actor": self.reviewer})
 
     def _audit(self, conn, case_id, action, new, old=None):
         conn.execute(text("""INSERT INTO dbo.audit_history(investigator_id,investigation_id,action,old_value,new_value,occurred_at)
             VALUES(:actor,:id,:action,:old,:new,SYSUTCDATETIME())"""),
-            {"actor": self.config.reviewer, "id": case_id, "action": action,
+            {"actor": self.reviewer, "id": case_id, "action": action,
              "old": json.dumps(old) if old is not None else None, "new": json.dumps(new)})
 
     def _associations(self, conn, case_id, data):
@@ -115,7 +124,7 @@ class Repository:
                 raise HTTPException(404, "Case not found.")
             note_id = "NOTE-" + uuid4().hex
             conn.execute(text("""INSERT INTO dbo.case_notes VALUES(:id,:case,:actor,:body,SYSUTCDATETIME())"""),
-                         {"id": note_id, "case": case_id, "actor": self.config.reviewer, "body": body})
+                         {"id": note_id, "case": case_id, "actor": self.reviewer, "body": body})
             conn.execute(text("UPDATE dbo.investigations SET updated_at=SYSUTCDATETIME() WHERE id=:id"), {"id": case_id})
             self._audit(conn, case_id, "case_note", {"id": note_id, "text": body})
         return note_id

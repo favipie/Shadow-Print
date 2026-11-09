@@ -1,4 +1,11 @@
 import {
+  hosted,
+  hostedRequestAllowed,
+  secureOrigin,
+  sessionFromRequest,
+} from "@/lib/hosted";
+import { readJsonBody } from "@/lib/json-body";
+import {
   apiPathAllowed,
   localBackend,
   localRequestAllowed,
@@ -6,52 +13,9 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ path: string[] }> };
-const maxBodyBytes = 100_000;
-
-async function readJsonBody(request: Request): Promise<string | Response> {
-  const mediaType = request.headers
-    .get("content-type")
-    ?.split(";")[0]
-    .trim()
-    .toLowerCase();
-  if (mediaType !== "application/json")
-    return Response.json({ detail: "JSON request required" }, { status: 415 });
-  const tooLarge = () =>
-    Response.json({ detail: "Request too large" }, { status: 413 });
-  if (Number(request.headers.get("content-length")) > maxBodyBytes)
-    return tooLarge();
-
-  const reader = request.body?.getReader();
-  const invalid = () =>
-    Response.json({ detail: "Invalid JSON" }, { status: 400 });
-  if (!reader) return invalid();
-  const bytes = new Uint8Array(maxBodyBytes);
-  let used = 0;
-  try {
-    while (true) {
-      const chunk = await reader.read();
-      if (chunk.done) break;
-      if (used + chunk.value.byteLength > maxBodyBytes) {
-        void reader.cancel().catch(() => {});
-        return tooLarge();
-      }
-      bytes.set(chunk.value, used);
-      used += chunk.value.byteLength;
-    }
-    const body = new TextDecoder("utf-8", { fatal: true }).decode(
-      bytes.subarray(0, used),
-    );
-    JSON.parse(body);
-    return body;
-  } catch {
-    return invalid();
-  } finally {
-    reader.releaseLock();
-  }
-}
-
 async function forward(request: Request, context: Context) {
-  if (!localRequestAllowed(request))
+  const cloud = hosted();
+  if (!(cloud ? hostedRequestAllowed(request) : localRequestAllowed(request)))
     return Response.json(
       { detail: "Local same-origin access only" },
       { status: 403 },
@@ -68,6 +32,9 @@ async function forward(request: Request, context: Context) {
       { detail: "The Next.js server API key is not configured" },
       { status: 503 },
     );
+  const session = cloud ? sessionFromRequest(request) : undefined;
+  if (cloud && !session)
+    return Response.json({ detail: "Sign in required" }, { status: 401 });
   let body: string | undefined;
   if (request.method !== "GET") {
     const payload = await readJsonBody(request);
@@ -75,9 +42,11 @@ async function forward(request: Request, context: Context) {
     body = payload;
   }
   try {
-    const origin = localBackend(
-      process.env.SHADOWPRINT_API_URL ?? "http://127.0.0.1:8000",
-    );
+    const origin = cloud
+      ? secureOrigin(process.env.SHADOWPRINT_API_URL)
+      : localBackend(
+          process.env.SHADOWPRINT_API_URL ?? "http://127.0.0.1:8000",
+        );
     const legacy = path.startsWith("legacy/api/");
     const upstreamPath = legacy
       ? path.slice("legacy/".length)
@@ -89,6 +58,7 @@ async function forward(request: Request, context: Context) {
         body,
         headers: {
           Authorization: `Bearer ${key}`,
+          ...(session ? { "X-Shadowprint-Session": session } : {}),
           "Content-Type": "application/json",
           ...(legacy ? { "X-Shadowprint-Client": "local-workspace" } : {}),
         },

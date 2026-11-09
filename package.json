@@ -10,7 +10,7 @@
     "test": "tsx --test tests/*.test.ts tests/*.test.tsx",
     "format": "prettier --write src tests",
     "format:check": "prettier --check src tests e2e playwright.config.ts eslint.config.mjs",
-    "lint": "eslint src tests e2e playwright.config.ts",
+    "lint": "eslint src tests e2e hosted-e2e playwright.config.ts playwright.hosted.config.ts",
     "test:e2e": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-e2e.ps1"
   },
   "dependencies": {

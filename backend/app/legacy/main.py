@@ -18,7 +18,7 @@ Offset = Annotated[int, Query(ge=0)]
 Search = Annotated[str, Query(max_length=200)]
 
 
-def create_app(db=engine, config: Settings = settings):
+def create_app(db=engine, config: Settings = settings, hosted_host=None):
     @asynccontextmanager
     async def lifespan(_):
         yield
@@ -26,8 +26,8 @@ def create_app(db=engine, config: Settings = settings):
 
     app = FastAPI(title="SHADOWPRINT local investigation API", version="1.0.0", lifespan=lifespan,
                   description="Synthetic academic workspace. Fixed local reviewer; no production authentication. No startup migrations.")
-    repo = Repository(db, config)
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver"])
+    repo = Repository(db, config, require_actor=bool(hosted_host))
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=[hosted_host] if hosted_host else ["127.0.0.1", "localhost", "testserver"])
     app.add_middleware(CORSMiddleware, allow_origins=config.origins, allow_methods=["GET", "POST", "PUT", "PATCH"], allow_headers=["Content-Type", "X-Shadowprint-Client"])
 
     @app.middleware("http")
@@ -197,6 +197,3 @@ def create_app(db=engine, config: Settings = settings):
         return {**data()["settings"], "health": health()}
 
     return app
-
-
-app = create_app()
